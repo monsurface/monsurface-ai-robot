@@ -47,7 +47,7 @@ def get_all_sheets_data():
 
     for sheet in spreadsheet.worksheets():
         sheet_name = sheet.title  # 取得分頁名稱
-        data = sheet.get_all_records()  # 取得所有數據
+        data = sheet.get_all_records(expected_headers=[])  # 忽略表頭問題
         all_data[sheet_name] = data
 
     return all_data
