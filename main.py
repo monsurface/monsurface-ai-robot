@@ -29,10 +29,12 @@ def callback():
     signature = request.headers.get("X-Line-Signature")
     body = request.get_data(as_text=True)
 
+    print(f"📥 收到 Webhook 請求: {body}")  # Debug 記錄請求內容
+
     try:
         handler.handle(body, signature)
     except Exception as e:
-        print(f"Webhook Error: {e}")
+        print(f"❌ Webhook 處理錯誤: {e}")
         return "Error", 400
 
     return "OK", 200
@@ -40,21 +42,31 @@ def callback():
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
     user_message = event.message.text
+    reply_token = event.reply_token
+
+    if not reply_token:
+        print("⚠️ 錯誤: `reply_token` 為空，無法回覆訊息")
+        return
+
+    if not user_message:
+        print("⚠️ 錯誤: 使用者訊息為空")
+        return
+
     reply_message = TextMessage(text=f"你說了：{user_message}")
 
-    if event.reply_token and user_message:
-        try:
-            # 確保 `messages` 參數是 `TextMessage` 物件
-            line_bot_api.reply_message(
-                reply_token=event.reply_token,
-                messages=[reply_message]  # 這裡確保是 TextMessage 物件
-            )
-        except Exception as e:
-            print(f"回覆訊息失敗: {e}")
-    else:
-        print("無效的 reply_token 或 user_message，無法回覆訊息")
+    try:
+        # 確保 `messages` 參數是 `TextMessage` 物件
+        line_bot_api.reply_message(
+            reply_token=reply_token,
+            messages=[reply_message]
+        )
+        print(f"✅ 成功回覆訊息: {reply_message.text}")
+
+    except Exception as e:
+        print(f"❌ 回覆訊息失敗: {e}")
 
 if __name__ == "__main__":
     from waitress import serve
     port = int(os.environ.get("PORT", 8080))
+    print(f"🚀 啟動 Flask 伺服器，監聽 Port {port}")
     serve(app, host="0.0.0.0", port=port)
