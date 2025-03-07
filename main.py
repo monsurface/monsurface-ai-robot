@@ -40,17 +40,50 @@ credentials = Credentials.from_service_account_file(
 )
 client = gspread.authorize(credentials)
 
+# ✅ 讀取 Google Sheets 數據
 def get_all_sheets_data():
-    """讀取 Google Sheets 內所有分頁的數據"""
-    spreadsheet = client.open_by_key(SPREADSHEET_ID)
-    all_data = {}
+    """讀取 Google Sheets 內所有分頁的數據，並提供錯誤處理但不強制特定欄位"""
+    try:
+        # 連接 Google Sheets
+        spreadsheet = client.open_by_key(SPREADSHEET_ID)
+        all_data = {}
 
-    for sheet in spreadsheet.worksheets():
-        sheet_name = sheet.title  # 取得分頁名稱
-        data = sheet.get_all_records(expected_headers=[])  # 忽略表頭問題
-        all_data[sheet_name] = data
+        for sheet in spreadsheet.worksheets():
+            sheet_name = sheet.title  # 取得分頁名稱
+            print(f"📂 讀取分頁：{sheet_name}")
 
-    return all_data
+            try:
+                data = sheet.get_all_records(expected_headers=[])  # 讀取所有行，避免表頭錯誤
+            except Exception as e:
+                print(f"❌ 讀取 {sheet_name} 分頁時發生錯誤：{e}")
+                continue  # 跳過這個分頁
+
+            # 檢查是否為空表單
+            if not data:
+                print(f"⚠️ 警告：{sheet_name} 分頁是空的，跳過處理。")
+                continue
+
+            # 可選的建議欄位（但不強制）
+            recommended_columns = ["系列", "型號", "款式", "表面處理", "花色", "說明", "表面處理"]  # 這裡填入可選欄位
+            missing_columns = [col for col in recommended_columns if col not in data[0]]
+
+            if missing_columns:
+                print(f"⚠️ {sheet_name} 缺少可選欄位：{missing_columns}，可能影響部分功能，但仍繼續處理。")
+
+            # 儲存數據（即使缺少某些欄位，也繼續處理）
+            all_data[sheet_name] = data
+
+        if not all_data:
+            print("❌ 錯誤：Google Sheets 沒有任何可用數據！請檢查表單內容。")
+            return None
+
+        print("✅ Google Sheets 讀取完成！")
+        return all_data
+
+    except Exception as e:
+        print(f"❌ 讀取 Google Sheets 失敗，錯誤原因：{e}")
+        return None
+
 
 # ✅ 設定 OpenAI API
 openai.api_key = OPENAI_API_KEY
