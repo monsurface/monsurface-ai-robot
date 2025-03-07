@@ -1,5 +1,5 @@
 from flask import Flask, request
-from linebot.v3.messaging import Configuration, ApiClient, MessagingApi
+from linebot.v3.messaging import Configuration, ApiClient, MessagingApi, ReplyMessageRequest
 from linebot.v3.webhook import WebhookHandler
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
 from linebot.v3.messaging import TextMessage
@@ -55,15 +55,15 @@ def handle_message(event):
         print("⚠️ 錯誤: 使用者訊息為空")
         return
 
-    # 確保 `messages` 參數格式正確
-    reply_message = [TextMessage(text=f"你說了：{user_message}")]
+    # ✅ 使用 `ReplyMessageRequest` 來構建正確的回覆格式
+    reply_message = ReplyMessageRequest(
+        reply_token=reply_token,
+        messages=[TextMessage(text=f"你說了：{user_message}")]
+    )
 
     try:
-        line_bot_api.reply_message(
-            reply_token=reply_token,
-            messages=reply_message  # ✅ 確保 `messages` 是 `TextMessage` 物件的列表
-        )
-        print(f"✅ 成功回覆訊息: {reply_message[0].text}")
+        line_bot_api.reply_message(reply_message)
+        print(f"✅ 成功回覆訊息: {user_message}")
 
     except Exception as e:
         print(f"❌ 回覆訊息失敗: {e}")
