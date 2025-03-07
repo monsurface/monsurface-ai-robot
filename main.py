@@ -42,9 +42,8 @@ client = gspread.authorize(credentials)
 
 # ✅ 讀取 Google Sheets 數據
 def get_all_sheets_data():
-    """讀取 Google Sheets 內所有分頁的數據，並提供錯誤處理但不強制特定欄位"""
+    """讀取 Google Sheets 內所有分頁的數據，完整處理並不限制數據量"""
     try:
-        # 連接 Google Sheets
         spreadsheet = client.open_by_key(SPREADSHEET_ID)
         all_data = {}
 
@@ -58,19 +57,11 @@ def get_all_sheets_data():
                 print(f"❌ 讀取 {sheet_name} 分頁時發生錯誤：{e}")
                 continue  # 跳過這個分頁
 
-            # 檢查是否為空表單
             if not data:
                 print(f"⚠️ 警告：{sheet_name} 分頁是空的，跳過處理。")
                 continue
 
-            # 可選的建議欄位（但不強制）
-            recommended_columns = ["系列", "型號", "款式", "表面處理", "花色", "說明", "表面處理"]  # 這裡填入可選欄位
-            missing_columns = [col for col in recommended_columns if col not in data[0]]
-
-            if missing_columns:
-                print(f"⚠️ {sheet_name} 缺少可選欄位：{missing_columns}，可能影響部分功能，但仍繼續處理。")
-
-            # 儲存數據（即使缺少某些欄位，也繼續處理）
+            # 儲存數據（不限制數據量）
             all_data[sheet_name] = data
 
         if not all_data:
@@ -89,27 +80,32 @@ def get_all_sheets_data():
 openai.api_key = OPENAI_API_KEY
 
 def ask_chatgpt(user_question):
-    """讓 ChatGPT 讀取 Google Sheets 內容並回答用戶問題"""
-    knowledge_base = get_all_sheets_data()  # 每次都讀取最新的資料
-    formatted_text = "這是最新的建材資料庫，包括多個類別：\n"
+    """讓 ChatGPT 讀取完整的 Google Sheets 內容並回答用戶問題"""
+    knowledge_base = get_all_sheets_data()  # 讀取最新資料
+
+    if not knowledge_base:
+        return "❌ 目前無法讀取建材資料，請稍後再試。"
+
+    formatted_text = "📚 這是最新的建材資料庫，包含所有詳細資訊：\n"
 
     for sheet_name, records in knowledge_base.items():
         formatted_text += f"\n📂 分類：{sheet_name}\n"
         for row in records:
-            formatted_text += f"型號：{row['型號']}，材質：{row['材質']}，顏色：{row['顏色']}，價格：{row['價格']} 元。\n"
+            details = ", ".join([f"{key}：{value}" for key, value in row.items()])
+            formatted_text += f"{details}\n"
 
     prompt = f"""
     你是一位建材專家，以下是最新的建材資料庫：
     {formatted_text}
 
     用戶的問題是：「{user_question}」
-    請根據建材資料回答問題，並提供詳細解釋。
-    如果問題與建材無關，請回答「這個問題與建材無關，我無法解答。」。
+    請根據建材資料詳細回答問題。
+    如果問題與建材無關，請回答：「這個問題與建材無關，我無法解答。」。
     """
 
     response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "system", "content": "你是一個建材專家，可以根據建材資料回答問題。"},
+        model="gpt-4",  # 使用 GPT-4，提升準確度
+        messages=[{"role": "system", "content": "你是一位建材專家，專門回答與建材相關的問題。"},
                   {"role": "user", "content": prompt}]
     )
 
@@ -154,4 +150,3 @@ if __name__ == "__main__":
     from waitress import serve
     port = int(os.environ.get("PORT", 8080))
     serve(app, host="0.0.0.0", port=port)
-
