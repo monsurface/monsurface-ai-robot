@@ -44,6 +44,9 @@ def handle_message(event):
     user_message = event.message.text
     reply_token = event.reply_token
 
+    print(f"📥 收到訊息: {user_message}")
+    print(f"🔑 Reply Token: {reply_token}")
+
     if not reply_token:
         print("⚠️ 錯誤: `reply_token` 為空，無法回覆訊息")
         return
@@ -52,15 +55,15 @@ def handle_message(event):
         print("⚠️ 錯誤: 使用者訊息為空")
         return
 
-    reply_message = TextMessage(text=f"你說了：{user_message}")
+    # 確保 `messages` 參數格式正確
+    reply_message = [TextMessage(text=f"你說了：{user_message}")]
 
     try:
-        # 確保 `messages` 參數是 `TextMessage` 物件
         line_bot_api.reply_message(
             reply_token=reply_token,
-            messages=[reply_message]
+            messages=reply_message  # ✅ 確保 `messages` 是 `TextMessage` 物件的列表
         )
-        print(f"✅ 成功回覆訊息: {reply_message.text}")
+        print(f"✅ 成功回覆訊息: {reply_message[0].text}")
 
     except Exception as e:
         print(f"❌ 回覆訊息失敗: {e}")
