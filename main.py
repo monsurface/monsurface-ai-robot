@@ -40,18 +40,19 @@ def callback():
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
     user_message = event.message.text
-    reply_message = f"你說了：{user_message}"
+    reply_message = TextMessage(text=f"你說了：{user_message}")
 
-    if event.reply_token:
+    if event.reply_token and user_message:
         try:
+            # 確保 `messages` 參數是 `TextMessage` 物件
             line_bot_api.reply_message(
                 reply_token=event.reply_token,
-                messages=[TextMessage(text=reply_message)]
+                messages=[reply_message]  # 這裡確保是 TextMessage 物件
             )
         except Exception as e:
             print(f"回覆訊息失敗: {e}")
     else:
-        print("無效的 reply_token，無法回覆訊息")
+        print("無效的 reply_token 或 user_message，無法回覆訊息")
 
 if __name__ == "__main__":
     from waitress import serve
