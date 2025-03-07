@@ -148,18 +148,17 @@ def handle_message(event):
     # 確保 ChatGPT 回覆的內容是字串
     reply_message = ask_chatgpt(user_message)
 
-    if not reply_message:
+    if not reply_message or not isinstance(reply_message, str):
         reply_message = "⚠️ 抱歉，目前無法取得建材資訊，請稍後再試。"
 
-    # 確保 LINE API 正確處理
+    # **🚀 修正 LINE API 傳送格式**
     try:
         line_bot_api.reply_message(
             reply_token=event.reply_token,
-            messages=[TextMessage(text=str(reply_message))]  # 確保是字串
+            messages=[TextMessage(text=str(reply_message))]  # 確保回傳值是 TextMessage 物件
         )
     except Exception as e:
         print(f"❌ LINE Bot 回覆錯誤: {e}")
-
 
 if __name__ == "__main__":
     from waitress import serve
