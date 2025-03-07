@@ -144,13 +144,21 @@ def callback():
 def handle_message(event):
     user_message = event.message.text.strip()
 
-    # 讓 ChatGPT 根據 Google Sheets 內容回答問題
+    # 確保 ChatGPT 回覆的內容是字串
     reply_message = ask_chatgpt(user_message)
 
-    line_bot_api.reply_message(
-        reply_token=event.reply_token,
-        messages=[TextMessage(text=reply_message)]
-    )
+    if not reply_message:
+        reply_message = "⚠️ 抱歉，目前無法取得建材資訊，請稍後再試。"
+
+    # 確保 LINE API 正確處理
+    try:
+        line_bot_api.reply_message(
+            reply_token=event.reply_token,
+            messages=[TextMessage(text=str(reply_message))]  # 確保是字串
+        )
+    except Exception as e:
+        print(f"❌ LINE Bot 回覆錯誤: {e}")
+
 
 if __name__ == "__main__":
     from waitress import serve
