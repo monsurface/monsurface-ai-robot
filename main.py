@@ -145,18 +145,21 @@ def callback():
 def handle_message(event):
     user_message = event.message.text.strip()
 
-    # 確保 ChatGPT 回覆的內容是字串
+    # **確保 ChatGPT 回覆的內容是有效的字串**
     reply_message = ask_chatgpt(user_message)
 
-    if not reply_message or not isinstance(reply_message, str):
+    if not reply_message or not isinstance(reply_message, str) or reply_message.strip() == "":
         reply_message = "⚠️ 抱歉，目前無法取得建材資訊，請稍後再試。"
 
-    # **🚀 修正 LINE API 傳送格式**
+    # **🚀 修正 LINE API 回覆格式**
+    text_message = TextMessage(text=reply_message)  # 確保 `TextMessage` 物件存在
+
     try:
         line_bot_api.reply_message(
             reply_token=event.reply_token,
-            messages=[TextMessage(text=str(reply_message))]  # 確保回傳值是 TextMessage 物件
+            messages=[text_message]  # 傳入 **TextMessage 物件**
         )
+        print("✅ 訊息成功發送至 LINE Bot")
     except Exception as e:
         print(f"❌ LINE Bot 回覆錯誤: {e}")
 
