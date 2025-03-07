@@ -82,7 +82,7 @@ openai.api_key = OPENAI_API_KEY
 import openai
 
 def ask_chatgpt(user_question):
-    """讓 ChatGPT 讀取完整的 Google Sheets 內容並回答用戶問題"""
+    """讓 ChatGPT 讀取 Google Sheets 內容並回答用戶問題"""
     knowledge_base = get_all_sheets_data()  # 讀取最新資料
 
     if not knowledge_base:
@@ -105,10 +105,10 @@ def ask_chatgpt(user_question):
     如果問題與建材無關，請回答：「這個問題與建材無關，我無法解答。」。
     """
 
-    client = openai.OpenAI(api_key=OPENAI_API_KEY)  # 使用新的 OpenAI 客戶端
+    client = openai.OpenAI(api_key=OPENAI_API_KEY)  # 使用 OpenAI 客戶端
 
     response = client.chat.completions.create(
-        model="gpt-4",  # 使用 GPT-4，提升準確度
+        model="gpt-3.5-turbo",  # 🚀 改為 gpt-3.5-turbo，確保可以運行
         messages=[
             {"role": "system", "content": "你是一位建材專家，專門回答與建材相關的問題。"},
             {"role": "user", "content": prompt}
