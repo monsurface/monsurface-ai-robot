@@ -79,8 +79,6 @@ def get_all_sheets_data():
 # ✅ 設定 OpenAI API
 openai.api_key = OPENAI_API_KEY
 
-import openai
-
 def ask_chatgpt(user_question):
     """讓 ChatGPT 讀取 Google Sheets 內容並回答用戶問題"""
     knowledge_base = get_all_sheets_data()  # 讀取最新資料
@@ -95,6 +93,9 @@ def ask_chatgpt(user_question):
         for row in records:
             details = ", ".join([f"{key}：{value}" for key, value in row.items()])
             formatted_text += f"{details}\n"
+
+    # **避免 token 超過上限，限制資訊量**
+    formatted_text = formatted_text[:12000]  # 限制在 12000 tokens 內
 
     prompt = f"""
     你是一位建材專家，以下是最新的建材資料庫：
@@ -115,7 +116,7 @@ def ask_chatgpt(user_question):
         ]
     )
 
-    return response.choices[0].message.content
+    return response.choices[0].message.content[:4000]  # 確保回覆不超過 4000 個字元
 
 # ✅ 設定 LINE Bot
 configuration = Configuration(access_token=LINE_CHANNEL_ACCESS_TOKEN)
