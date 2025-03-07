@@ -1,8 +1,9 @@
 from flask import Flask, request
 import os
-from linebot.v3.messaging import Configuration, ApiClient, MessagingApi, TextMessage
+from linebot.v3.messaging import Configuration, ApiClient, MessagingApi, ReplyMessageRequest
 from linebot.v3.webhook import WebhookHandler
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
+from linebot.v3.messaging.models import TextMessage
 
 app = Flask(__name__)
 
@@ -35,18 +36,29 @@ def callback():
 
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
+    user_message = event.message.text.strip()
+    reply_token = event.reply_token  # 取得 reply_token
+
+    print(f"📩 收到訊息：{user_message}")
+    print(f"🔑 Reply Token: {reply_token}")
+
+    if not reply_token:
+        print("⚠️ 錯誤：`reply_token` 為空，無法回覆訊息")
+        return
+
+    if not user_message:
+        print("⚠️ 錯誤：使用者訊息為空")
+        return
+
+    # ✅ **使用 `ReplyMessageRequest` 來構建正確的回覆格式**
+    reply_message = ReplyMessageRequest(
+        reply_token=reply_token,
+        messages=[TextMessage(text=f"✅ 你說了：{user_message}")]
+    )
+
     try:
-        # **強制確保回應格式為 `TextMessage`**
-        user_message = event.message.text.strip()
-        reply_message = f"✅ LINE BOT 測試成功！你的訊息是：「{user_message}」"
-        text_message = TextMessage(text=reply_message)  # 確保是 TextMessage 物件
-
-        line_bot_api.reply_message(
-            reply_token=event.reply_token,
-            messages=[text_message]  # 必須是 `TextMessage`
-        )
-
-        print(f"✅ 成功回應 LINE 訊息：「{reply_message}」")
+        line_bot_api.reply_message(reply_message)
+        print(f"✅ 成功回應 LINE 訊息：「{user_message}」")
 
     except Exception as e:
         print(f"❌ LINE Bot 回覆錯誤: {e}")
