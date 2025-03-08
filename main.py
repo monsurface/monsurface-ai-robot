@@ -49,13 +49,17 @@ client = gspread.authorize(credentials)
 
 def fuzzy_match_brand(user_input):
     """嘗試找到最接近的品牌名稱"""
-    brand_match, score = process.extractOne(user_input, BRAND_SHEETS.keys())
-    if score >= 80:
-        print(f"🔍 匹配品牌成功：{brand_match}（匹配度：{score}）")
-        return brand_match
-    else:
-        print(f"⚠️ 未找到匹配的品牌（最高匹配度：{score}）")
-        return None
+    result = process.extractOne(user_input, BRAND_SHEETS.keys())
+    
+    if result:
+        brand_match, score, *_ = result  # 忽略多餘的回傳值
+        if score >= 80:
+            print(f"🔍 匹配品牌成功：{brand_match}（匹配度：{score}）")
+            return brand_match
+        else:
+            print(f"⚠️ 未找到匹配的品牌（最高匹配度：{score}）")
+            return None
+    return None
 
 def get_sheets_data(brand):
     """根據品牌讀取對應的 Google Sheets 數據"""
