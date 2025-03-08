@@ -105,7 +105,7 @@ def ask_chatgpt(user_question):
     client = openai.OpenAI(api_key=OPENAI_API_KEY)  # 使用 OpenAI 客戶端
 
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo",  # 🚀 使用 gpt-3.5-turbo，避免 token 過長問題
+        model="gpt-3.5-turbo-instruct",  # 🚀 使用 gpt-3.5-turbo，避免 token 過長問題
         messages=[
             {"role": "system", "content": "你是一位建材專家，專門回答與建材相關的問題。"},
             {"role": "user", "content": prompt}
