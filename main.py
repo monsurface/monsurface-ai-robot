@@ -16,7 +16,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
 LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
 DROPBOX_URL = os.getenv("DROPBOX_URL")  # Dropbox 下載 `credentials.json`
-SPREADSHEET_ID = os.getenv("SPREADSHEET_ID")  # Google Sheets ID
+SPREADSHEET_ID_A = os.getenv("SPREADSHEET_ID")  # Google Sheets ID
 
 # ✅ 下載 Google API 憑證
 LOCAL_FILE_PATH = "credentials.json"
