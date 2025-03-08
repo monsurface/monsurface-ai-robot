@@ -21,25 +21,13 @@ DROPBOX_URL = os.getenv("DROPBOX_URL")
 # ✅ **完整品牌對應 Google Sheet ID**
 BRAND_SHEETS = {
     "富美家": os.getenv("SPREADSHEET_ID_A"),
-    "新日綠建材": os.getenv("SPREADSHEET_ID_B"),
-    "鉅莊-樂維LAVI": os.getenv("SPREADSHEET_ID_C"),
     "愛卡AICA-愛克板": os.getenv("SPREADSHEET_ID_D"),
-    "松華-松耐特及系列品牌": os.getenv("SPREADSHEET_ID_E"),
-    "吉祥": os.getenv("SPREADSHEET_ID_F"),
-    "華旗": os.getenv("SPREADSHEET_ID_G"),
-    "科彰": os.getenv("SPREADSHEET_ID_H"),
-    "華槶線板": os.getenv("SPREADSHEET_ID_I"),
-    "魔拉頓 Melatone": os.getenv("SPREADSHEET_ID_J"),
-    "利明礦石軟片": os.getenv("SPREADSHEET_ID_K"),
-    "熱門主推": os.getenv("SPREADSHEET_ID_L"),
 }
 
 # ✅ 品牌名稱別名（增加匹配範圍）
 BRAND_ALIASES = {
     "富美家": ["富美家", "Formica"],
     "愛卡AICA-愛克板": ["愛卡", "AICA", "愛克板"],
-    "鉅莊-樂維LAVI": ["鉅莊", "樂維", "LAVI"],
-    "魔拉頓 Melatone": ["魔拉頓", "Melatone"],
 }
 
 # ✅ **下載 Google API 憑證**
@@ -68,9 +56,9 @@ def fuzzy_match_brand(user_input):
     all_brand_names = list(BRAND_SHEETS.keys()) + [alias for aliases in BRAND_ALIASES.values() for alias in aliases]
     match_result = process.extractOne(user_input, all_brand_names)
 
-    if match_result:  # 確保有回傳值
-        best_match, score = match_result[:2]  # **只取前兩個值，避免解包錯誤**
-        print(f"🔍 匹配品牌：{best_match}（匹配度：{score}）")  # Debug 訊息
+    if match_result:
+        best_match, score = match_result[:2]  # 避免解包錯誤
+        print(f"🔍 匹配品牌：{best_match}（匹配度：{score}）")
         if score >= 70:
             for brand, aliases in BRAND_ALIASES.items():
                 if best_match in aliases:
@@ -79,9 +67,8 @@ def fuzzy_match_brand(user_input):
     print(f"⚠️ 未找到匹配的品牌")
     return None
 
-
 def get_sheets_data(brand):
-    """📊 根據品牌讀取對應的 Google Sheets 數據"""
+    """📊 根據品牌讀取對應的 Google Sheets 數據，並標準化內容"""
     sheet_id = BRAND_SHEETS.get(brand)
     if not sheet_id:
         print(f"⚠️ 品牌 {brand} 沒有對應的 Google Sheets ID")
@@ -96,11 +83,23 @@ def get_sheets_data(brand):
             print(f"📂 讀取分頁：{sheet_name}")
 
             try:
-                data = sheet.get_all_records(expected_headers=[])
-                if not data:
-                    print(f"⚠️ {sheet_name} 分頁是空的，跳過處理。")
+                raw_data = sheet.get_all_records(expected_headers=[])
+
+                # ✅ 確保 `raw_data` 是 `dict`，避免 `list` 錯誤
+                if isinstance(raw_data, list):
+                    if raw_data and isinstance(raw_data[0], dict):
+                        formatted_data = {str(i): row for i, row in enumerate(raw_data)}
+                    else:
+                        print(f"⚠️ {sheet_name} 分頁格式異常，可能缺少標題列！")
+                        continue
+                elif isinstance(raw_data, dict):
+                    formatted_data = {k.replace(" ", "").strip(): v for k, v in raw_data.items()}
+                else:
+                    print(f"⚠️ {sheet_name} 分頁格式不支援！")
                     continue
-                all_data[sheet_name] = data
+
+                all_data[sheet_name] = formatted_data
+
             except Exception as e:
                 print(f"❌ 讀取 {sheet_name} 分頁時發生錯誤：{e}")
                 continue  
@@ -115,6 +114,39 @@ def get_sheets_data(brand):
     except Exception as e:
         print(f"❌ 讀取 Google Sheets 失敗：{e}")
         return None
+
+
+def ask_chatgpt(user_question, formatted_text):
+    """讓 ChatGPT 讀取 Google Sheets 內容並條列式回答用戶問題"""
+    
+    prompt = f"""
+    你是一位建材專家，以下是最新的建材資料庫：
+    {formatted_text}
+
+    用戶的問題是：「{user_question}」
+    請根據建材資料提供的型號，完整詳細列點，且全部使用繁體中文。
+    如果問題與建材無關，請回答：「請提供您的建材品牌和型號以做查詢。」。
+    """
+
+    models_to_try = ["gpt-3.5-turbo", "gpt-3.5-turbo-0125", "gpt-3.5-turbo-16k"]
+    client = openai.Client(api_key=OPENAI_API_KEY)
+
+    for model in models_to_try:
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[{"role": "system", "content": "你是一位建材專家，專門回答與建材相關的問題。"},
+                          {"role": "user", "content": prompt}]
+            )
+
+            if response and response.choices:
+                return response.choices[0].message.content
+
+        except openai.OpenAIError as e:
+            print(f"⚠️ OpenAI API 錯誤: {str(e)}，嘗試下一個模型...")
+            continue  
+
+    return "⚠️ 抱歉，目前無法取得建材資訊，請稍後再試。"
 
 # ✅ **設定 LINE Bot**
 configuration = Configuration(access_token=LINE_CHANNEL_ACCESS_TOKEN)
@@ -140,11 +172,13 @@ def callback():
 def handle_message(event):
     """處理使用者傳送的訊息"""
     user_message = event.message.text.strip()
+
+    # ✅ **去除使用者輸入的所有空格**
+    user_message = user_message.replace(" ", "")
+
     reply_token = event.reply_token  
+    print(f"📩 收到訊息：{user_message}")
 
-    print(f"📩 收到訊息：{user_message}")  # Debug 訊息
-
-    # ✅ **品牌識別 & 型號查詢**
     matched_brand = fuzzy_match_brand(user_message)
 
     if matched_brand:
@@ -153,15 +187,12 @@ def handle_message(event):
 
         if sheet_data:
             formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data.items())
-            reply_text = f"🔍 品牌 **{matched_brand}** 資訊：\n{formatted_text[:500]}..."  # 限制長度
+            reply_text = ask_chatgpt(user_message, formatted_text)
         else:
             reply_text = f"⚠️ 目前無法取得 **{matched_brand}** 的建材資訊。"
     else:
-        reply_text = "⚠️ 請提供品牌名稱，例如：『富美家 1234 型號』，才能查詢建材資訊。"
+        reply_text = "⚠️ 請提供品牌名稱，例如：『富美家 8874NM』，才能查詢建材資訊。"
 
-    print(f"📤 回應使用者：{reply_text}")  # Debug 訊息
-
-    # ✅ **回應 LINE 訊息**
     reply_message = ReplyMessageRequest(reply_token=reply_token, messages=[TextMessage(text=reply_text)])
 
     try:
