@@ -66,16 +66,19 @@ client = gspread.authorize(credentials)
 def fuzzy_match_brand(user_input):
     """🔍 嘗試匹配最接近的品牌名稱"""
     all_brand_names = list(BRAND_SHEETS.keys()) + [alias for aliases in BRAND_ALIASES.values() for alias in aliases]
-    best_match, score = process.extractOne(user_input, all_brand_names)
+    match_result = process.extractOne(user_input, all_brand_names)
 
-    print(f"🔍 匹配品牌：{best_match}（匹配度：{score}）")  # Debug 訊息
-
-    if score >= 70:  # ✅ **降低匹配門檻**
-        for brand, aliases in BRAND_ALIASES.items():
-            if best_match in aliases:
-                return brand
-        return best_match
+    if match_result:  # 確保有回傳值
+        best_match, score = match_result[:2]  # **只取前兩個值，避免解包錯誤**
+        print(f"🔍 匹配品牌：{best_match}（匹配度：{score}）")  # Debug 訊息
+        if score >= 70:
+            for brand, aliases in BRAND_ALIASES.items():
+                if best_match in aliases:
+                    return brand
+            return best_match
+    print(f"⚠️ 未找到匹配的品牌")
     return None
+
 
 def get_sheets_data(brand):
     """📊 根據品牌讀取對應的 Google Sheets 數據"""
