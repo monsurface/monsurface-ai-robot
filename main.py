@@ -94,9 +94,11 @@ def ask_chatgpt(user_question, formatted_text):
     # ✅ 順序嘗試多個 GPT-3.5 變體，確保至少有一個可用
     models_to_try = ["gpt-3.5-turbo", "gpt-3.5-turbo-0125", "gpt-3.5-turbo-16k"]
 
+    client = openai.Client(api_key=os.getenv("OPENAI_API_KEY"))  # ✅ 確保使用新版的 API 語法
+
     for model in models_to_try:
         try:
-            response = openai.ChatCompletion.create(
+            response = client.chat.completions.create(
                 model=model,
                 messages=[
                     {"role": "system", "content": "你是一位建材專家，專門回答與建材相關的問題。"},
@@ -105,14 +107,15 @@ def ask_chatgpt(user_question, formatted_text):
             )
 
             # ✅ 確保 response 有效
-            if response and "choices" in response and response.choices:
-                return response["choices"][0]["message"]["content"]
+            if response and response.choices:
+                return response.choices[0].message.content
 
         except openai.OpenAIError as e:
             print(f"⚠️ OpenAI API 錯誤: {str(e)}，嘗試下一個模型...")
             continue  # 嘗試下一個模型
 
     return "⚠️ 抱歉，目前無法取得建材資訊，請稍後再試。"
+
 
 # ✅ 設定 LINE Bot
 configuration = Configuration(access_token=LINE_CHANNEL_ACCESS_TOKEN)
