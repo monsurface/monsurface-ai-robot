@@ -104,8 +104,10 @@ def ask_chatgpt(user_question):
     """
     
     client = openai.OpenAI(api_key=OPENAI_API_KEY)
+    
+    # 根據可用的 ChatGPT 模型自動選擇
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo",  # 🚀 使用 gpt-3.5-turbo 以確保效能
+        model=None,  # 不限制特定模型，由 API 決定最適合的
         messages=[
             {"role": "system", "content": "你是一位建材專家，專門回答與建材相關的問題。"},
             {"role": "user", "content": prompt}
