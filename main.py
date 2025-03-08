@@ -68,7 +68,7 @@ def fuzzy_match_brand(user_input):
     return None
 
 def get_sheets_data(brand):
-    """📊 根據品牌讀取對應的 Google Sheets 數據"""
+    """📊 根據品牌讀取對應的 Google Sheets 數據，並標準化內容"""
     sheet_id = BRAND_SHEETS.get(brand)
     if not sheet_id:
         print(f"⚠️ 品牌 {brand} 沒有對應的 Google Sheets ID")
@@ -83,11 +83,15 @@ def get_sheets_data(brand):
             print(f"📂 讀取分頁：{sheet_name}")
 
             try:
-                data = sheet.get_all_records(expected_headers=[])
-                if not data:
+                raw_data = sheet.get_all_records(expected_headers=[])
+                if not raw_data:
                     print(f"⚠️ {sheet_name} 分頁是空的，跳過處理。")
                     continue
-                all_data[sheet_name] = data
+
+                # **標準化 Key (型號) 去除空格，確保比對時一致**
+                normalized_data = {k.replace(" ", "").strip(): v for k, v in raw_data.items()}
+                all_data[sheet_name] = normalized_data
+
             except Exception as e:
                 print(f"❌ 讀取 {sheet_name} 分頁時發生錯誤：{e}")
                 continue  
@@ -159,8 +163,11 @@ def callback():
 def handle_message(event):
     """處理使用者傳送的訊息"""
     user_message = event.message.text.strip()
-    reply_token = event.reply_token  
 
+    # ✅ **去除使用者輸入的所有空格**
+    user_message = user_message.replace(" ", "")
+
+    reply_token = event.reply_token  
     print(f"📩 收到訊息：{user_message}")
 
     matched_brand = fuzzy_match_brand(user_message)
@@ -175,7 +182,7 @@ def handle_message(event):
         else:
             reply_text = f"⚠️ 目前無法取得 **{matched_brand}** 的建材資訊。"
     else:
-        reply_text = "⚠️ 請提供品牌名稱，例如：『富美家 1234 型號』，才能查詢建材資訊。"
+        reply_text = "⚠️ 請提供品牌名稱，例如：『富美家 8874NM』，才能查詢建材資訊。"
 
     reply_message = ReplyMessageRequest(reply_token=reply_token, messages=[TextMessage(text=reply_text)])
 
