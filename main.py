@@ -21,17 +21,7 @@ DROPBOX_URL = os.getenv("DROPBOX_URL")
 # ✅ 各品牌對應 Google Sheet ID
 BRAND_SHEETS = {
     "富美家": os.getenv("SPREADSHEET_ID_A"),
-    "新日綠建材": os.getenv("SPREADSHEET_ID_B"),
-    "鉅莊-樂維LAVI": os.getenv("SPREADSHEET_ID_C"),
     "愛卡AICA-愛克板": os.getenv("SPREADSHEET_ID_D"),
-    "松華-松耐特及系列品牌": os.getenv("SPREADSHEET_ID_E"),
-    "吉祥": os.getenv("SPREADSHEET_ID_F"),
-    "華旗": os.getenv("SPREADSHEET_ID_G"),
-    "科彰": os.getenv("SPREADSHEET_ID_H"),
-    "華槶線板": os.getenv("SPREADSHEET_ID_I"),
-    "魔拉頓 Melatone": os.getenv("SPREADSHEET_ID_J"),
-    "利明礦石軟片": os.getenv("SPREADSHEET_ID_K"),
-    "熱門主推": os.getenv("SPREADSHEET_ID_L"),
 }
 
 # ✅ 下載 Google API 憑證
