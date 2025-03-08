@@ -77,7 +77,6 @@ def get_all_sheets_data():
 
 # ✅ 設定 OpenAI API
 openai.api_key = OPENAI_API_KEY
-import openai
 
 def ask_chatgpt(user_question, formatted_text):
     """讓 ChatGPT 讀取 Google Sheets 內容並條列式回答用戶問題"""
@@ -156,11 +155,21 @@ def handle_message(event):
         print("⚠️ 錯誤：使用者訊息為空")
         return
 
-    # ✅ **使用 ChatGPT 回應**
-    reply_text = ask_chatgpt(user_message)
+    # ✅ **讀取 Google Sheets 數據**
+    knowledge_base = get_all_sheets_data()
 
-    if not reply_text:
+    if not knowledge_base:
         reply_text = "⚠️ 抱歉，目前無法取得建材資訊，請稍後再試。"
+    else:
+        formatted_text = "📚 這是最新的建材資料庫：\n"
+        for sheet_name, records in knowledge_base.items():
+            formatted_text += f"\n📂 {sheet_name}\n"
+            for row in records:
+                details = ", ".join([f"{key}：{value}" for key, value in row.items()])
+                formatted_text += f"{details}\n"
+
+        # ✅ **傳入 `formatted_text`，確保 `ask_chatgpt()` 正確運行**
+        reply_text = ask_chatgpt(user_message, formatted_text)
 
     # ✅ **使用 `ReplyMessageRequest` 來構建正確的回覆格式**
     reply_message = ReplyMessageRequest(
