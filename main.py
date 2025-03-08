@@ -16,7 +16,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
 LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
 DROPBOX_URL = os.getenv("DROPBOX_URL")  # Dropbox 下載 `credentials.json`
-SPREADSHEET_ID_A = os.getenv("SPREADSHEET_ID")  # Google Sheets ID
+SPREADSHEET_ID_A = os.getenv("SPREADSHEET_ID_A")  # Google Sheets ID
 
 # ✅ 下載 Google API 憑證
 LOCAL_FILE_PATH = "credentials.json"
@@ -44,7 +44,7 @@ client = gspread.authorize(credentials)
 def get_all_sheets_data():
     """讀取 Google Sheets 內所有分頁的數據"""
     try:
-        spreadsheet = client.open_by_key(SPREADSHEET_ID)
+        spreadsheet = client.open_by_key(SPREADSHEET_ID_A)
         all_data = {}
 
         for sheet in spreadsheet.worksheets():
