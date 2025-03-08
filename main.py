@@ -77,41 +77,41 @@ def get_all_sheets_data():
 
 # ✅ 設定 OpenAI API
 openai.api_key = OPENAI_API_KEY
+import openai
 
 def ask_chatgpt(user_question):
     """讓 ChatGPT 讀取 Google Sheets 內容並回答用戶問題"""
-    knowledge_base = get_all_sheets_data()  # 讀取最新資料
-
+    knowledge_base = get_all_sheets_data()  # 讀取最新的建材資料
+    
     if not knowledge_base:
         return "❌ 目前無法讀取建材資料，請稍後再試。"
-
-    formatted_text = "📚 這是最新的建材資料庫，包含所有詳細資訊：\n"
-
-    for sheet_name, records in knowledge_base.items():
-        formatted_text += f"\n📂 分類：{sheet_name}\n"
-        for row in records:
-            details = ", ".join([f"{key}：{value}" for key, value in row.items()])
-            formatted_text += f"{details}\n"
-
+    
+    # 組合建材資料庫內容
+    formatted_text = "\n".join(
+        f"📂 分類：{sheet_name}\n" + "\n".join(
+            ", ".join(f"{key}：{value}" for key, value in row.items()) for row in records
+        )
+        for sheet_name, records in knowledge_base.items()
+    )
+    
     prompt = f"""
     你是一位建材專家，以下是最新的建材資料庫：
     {formatted_text}
-
+    
     用戶的問題是：「{user_question}」
-    請根據建材資料庫所有資料，詳盡的以條列式回答問題，且都使用繁體中文。
-    如果問題與建材無關，請回答：「這個問題與建材無關，我無法解答。」。
+    請根據建材資料庫提供詳盡的條列式回答，並使用繁體中文。
+    若問題與建材無關，請回覆：「這個問題與建材無關，我無法解答。」
     """
-
-    client = openai.OpenAI(api_key=OPENAI_API_KEY)  # 使用 OpenAI 客戶端
-
+    
+    client = openai.OpenAI(api_key=OPENAI_API_KEY)
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo",  # 🚀 使用 gpt-3.5-turbo，避免 token 過長問題
+        model="gpt-3.5-turbo",  # 🚀 使用 gpt-3.5-turbo 以確保效能
         messages=[
             {"role": "system", "content": "你是一位建材專家，專門回答與建材相關的問題。"},
             {"role": "user", "content": prompt}
         ]
     )
-
+    
     return response.choices[0].message.content
 
 # ✅ 設定 LINE Bot
