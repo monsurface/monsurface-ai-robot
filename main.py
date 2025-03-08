@@ -53,7 +53,7 @@ def fuzzy_match_brand(user_input):
     
     if result:
         brand_match, score, *_ = result  # 忽略多餘的回傳值
-        if score >= 80:
+        if score >= 70:
             print(f"🔍 匹配品牌成功：{brand_match}（匹配度：{score}）")
             return brand_match
         else:
