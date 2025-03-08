@@ -1,4 +1,3 @@
-
 from flask import Flask, request
 import gspread
 import requests
@@ -31,7 +30,7 @@ BRAND_ALIASES = {
     "愛卡AICA-愛克板": ["愛卡", "AICA", "愛克板"],
 }
 
-# ✅ **下載 Google API 憑證**
+# ✅ 下載 Google API 憑證
 LOCAL_FILE_PATH = "credentials.json"
 
 def download_credentials():
@@ -45,7 +44,7 @@ def download_credentials():
 
 download_credentials()
 
-# ✅ **讀取 Google Sheets API 憑證**
+# ✅ 讀取 Google Sheets API 憑證
 credentials = Credentials.from_service_account_file(
     LOCAL_FILE_PATH,
     scopes=["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -58,7 +57,7 @@ def fuzzy_match_brand(user_input):
     match_result = process.extractOne(user_input, all_brand_names)
 
     if match_result:
-        best_match, score = match_result[:2]  # 避免解包錯誤
+        best_match, score = match_result[:2]  
         print(f"🔍 匹配品牌：{best_match}（匹配度：{score}）")
         if score >= 70:
             for brand, aliases in BRAND_ALIASES.items():
@@ -68,11 +67,18 @@ def fuzzy_match_brand(user_input):
     print(f"⚠️ 未找到匹配的品牌")
     return None
 
-def get_sheets_data(brand):
-    """📊 根據品牌讀取對應的 Google Sheets 數據，並標準化內容"""
+def clean_model_number(user_input, brand):
+    """🎯 清理型號，使其無視空格與格式錯誤"""
+    brand_aliases = [brand] + BRAND_ALIASES.get(brand, [])
+    for alias in brand_aliases:
+        if user_input.startswith(alias):
+            return user_input.replace(alias, "").strip().replace(" ", "")  
+    return user_input.strip().replace(" ", "")
+
+def get_sheets_data(brand, model_number, retry=True):
+    """📊 讀取 Google Sheets 數據，若查不到則重試"""
     sheet_id = BRAND_SHEETS.get(brand)
     if not sheet_id:
-        print(f"⚠️ 品牌 {brand} 沒有對應的 Google Sheets ID")
         return None
 
     try:
@@ -81,75 +87,55 @@ def get_sheets_data(brand):
 
         for sheet in spreadsheet.worksheets():
             sheet_name = sheet.title
-            print(f"📂 讀取分頁：{sheet_name}")
+            raw_data = sheet.get_all_records(expected_headers=[])
 
-            try:
-                raw_data = sheet.get_all_records(expected_headers=[])
+            for row in raw_data:
+                for key, value in row.items():
+                    clean_key = key.strip().replace(" ", "")  
+                    clean_value = str(value).strip().replace(" ", "")  
+                    if clean_value == model_number:
+                        all_data[sheet_name] = row  
 
-                # ✅ 確保 `raw_data` 是 `dict`，避免 `list` 錯誤
-                if isinstance(raw_data, list):
-                    if raw_data and isinstance(raw_data[0], dict):
-                        formatted_data = {str(i): row for i, row in enumerate(raw_data)}
-                    else:
-                        print(f"⚠️ {sheet_name} 分頁格式異常，可能缺少標題列！")
-                        continue
-                elif isinstance(raw_data, dict):
-                    formatted_data = {k.replace(" ", "").strip(): v for k, v in raw_data.items()}
-                else:
-                    print(f"⚠️ {sheet_name} 分頁格式不支援！")
-                    continue
+        if not all_data and retry:
+            print("🔄 嘗試重新讀取 Google Sheets 數據...")
+            return get_sheets_data(brand, model_number, retry=False)  # **第二次查找**
 
-                all_data[sheet_name] = formatted_data
-
-            except Exception as e:
-                print(f"❌ 讀取 {sheet_name} 分頁時發生錯誤：{e}")
-                continue  
-
-        if all_data:
-            print("✅ 成功讀取 Google Sheets！")
-            return all_data
-        else:
-            print("⚠️ 該品牌的 Google Sheets 沒有可用數據")
-            return None
+        return all_data if all_data else None
 
     except Exception as e:
         print(f"❌ 讀取 Google Sheets 失敗：{e}")
         return None
 
-
 def ask_chatgpt(user_question, formatted_text):
-    """讓 ChatGPT 讀取 Google Sheets 內容並條列式回答用戶問題"""
-    
+    """🔹 ChatGPT AI 回答"""
     prompt = f"""
     你是一位建材專家，以下是最新的建材資料庫：
     {formatted_text}
 
     用戶的問題是：「{user_question}」
-    請根據建材資料提供的型號，完整詳細列點，且全部使用繁體中文。
-    如果問題與建材無關，請回答：「請提供您的建材品牌和型號以做查詢。」。
+    請提供完整詳細的建材資訊，並使用條列式格式回答。
     """
 
     models_to_try = ["gpt-3.5-turbo", "gpt-3.5-turbo-0125", "gpt-3.5-turbo-16k"]
-    client = openai.Client(api_key=OPENAI_API_KEY)
+    openai.api_key = OPENAI_API_KEY  
 
     for model in models_to_try:
         try:
-            response = client.chat.completions.create(
+            response = openai.ChatCompletion.create(
                 model=model,
                 messages=[{"role": "system", "content": "你是一位建材專家，專門回答與建材相關的問題。"},
                           {"role": "user", "content": prompt}]
             )
 
-            if response and response.choices:
-                return response.choices[0].message.content
+            if response and "choices" in response and response.choices:
+                return response["choices"][0]["message"]["content"]
 
-        except openai.OpenAIError as e:
-            print(f"⚠️ OpenAI API 錯誤: {str(e)}，嘗試下一個模型...")
+        except openai.error.OpenAIError:
             continue  
 
     return "⚠️ 抱歉，目前無法取得建材資訊，請稍後再試。"
 
-# ✅ **設定 LINE Bot**
+# ✅ 設定 LINE Bot
 configuration = Configuration(access_token=LINE_CHANNEL_ACCESS_TOKEN)
 api_client = ApiClient(configuration)
 line_bot_api = MessagingApi(api_client)
@@ -157,53 +143,33 @@ handler = WebhookHandler(LINE_CHANNEL_SECRET)
 
 @app.route("/callback", methods=["POST"])
 def callback():
-    """處理 LINE Webhook 事件"""
     signature = request.headers.get("X-Line-Signature")
     body = request.get_data(as_text=True)
 
     try:
         handler.handle(body, signature)
-    except Exception as e:
-        print(f"❌ Webhook Error: {e}")
+    except Exception:
         return "Error", 400
 
     return "OK", 200
 
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
-    """處理使用者傳送的訊息"""
-    user_message = event.message.text.strip()
-
-    # ✅ **去除使用者輸入的所有空格**
-    user_message = user_message.replace(" ", "")
-
+    """📩 處理 LINE 使用者輸入"""
+    user_message = " ".join(event.message.text.strip().split())  
     reply_token = event.reply_token  
-    print(f"📩 收到訊息：{user_message}")
 
     matched_brand = fuzzy_match_brand(user_message)
-
-    if matched_brand:
-        print(f"✅ 確認品牌：{matched_brand}")
-        sheet_data = get_sheets_data(matched_brand)
+    if not matched_brand:
+        reply_text = "⚠️ 請提供品牌名稱，例如：『富美家 8874NM』。"
+    else:
+        model_number = clean_model_number(user_message, matched_brand)
+        sheet_data = get_sheets_data(matched_brand, model_number)
 
         if sheet_data:
             formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data.items())
             reply_text = ask_chatgpt(user_message, formatted_text)
         else:
-            reply_text = f"⚠️ 目前無法取得 **{matched_brand}** 的建材資訊。"
-    else:
-        reply_text = "⚠️ 請提供品牌名稱，例如：『富美家 8874NM』，才能查詢建材資訊。"
+            reply_text = f"⚠️ 無法找到 **{matched_brand} {model_number}**，請確認型號是否正確。"
 
-    reply_message = ReplyMessageRequest(reply_token=reply_token, messages=[TextMessage(text=reply_text)])
-
-    try:
-        line_bot_api.reply_message(reply_message)
-        print(f"✅ 成功回應 LINE 訊息")
-    except Exception as e:
-        print(f"❌ LINE Bot 回覆錯誤: {e}")
-
-if __name__ == "__main__":
-    from waitress import serve
-    port = int(os.environ.get("PORT", 8080))
-    print("🚀 LINE Bot 伺服器啟動中...")
-    serve(app, host="0.0.0.0", port=port)
+    line_bot_api.reply_message(ReplyMessageRequest(reply_token=reply_token, messages=[TextMessage(text=reply_text)]))
