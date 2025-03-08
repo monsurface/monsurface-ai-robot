@@ -16,9 +16,9 @@ app = Flask(__name__)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
 LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
-DROPBOX_URL = os.getenv("DROPBOX_URL")  # Dropbox 下載 `credentials.json`
+DROPBOX_URL = os.getenv("DROPBOX_URL")
 
-# ✅ 各品牌對應的 Google Sheet ID
+# ✅ 各品牌對應 Google Sheet ID
 BRAND_SHEETS = {
     "富美家": os.getenv("SPREADSHEET_ID_A"),
     "新日綠建材": os.getenv("SPREADSHEET_ID_B"),
@@ -38,7 +38,6 @@ BRAND_SHEETS = {
 LOCAL_FILE_PATH = "credentials.json"
 
 def download_credentials():
-    """從 Dropbox 下載 credentials.json"""
     response = requests.get(DROPBOX_URL)
     if response.status_code == 200:
         with open(LOCAL_FILE_PATH, "wb") as file:
@@ -59,14 +58,14 @@ client = gspread.authorize(credentials)
 def fuzzy_match_brand(user_input):
     """嘗試找到最接近的品牌名稱"""
     brand_match, score = process.extractOne(user_input, BRAND_SHEETS.keys())
-    return brand_match if score >= 80 else None  # 設定匹配度 80% 以上才視為有效匹配
+    return brand_match if score >= 80 else None
 
 def get_sheets_data(brand):
     """根據品牌讀取對應的 Google Sheets 數據"""
     sheet_id = BRAND_SHEETS.get(brand)
     if not sheet_id:
         return None
-    
+
     try:
         spreadsheet = client.open_by_key(sheet_id)
         all_data = {}
@@ -93,22 +92,10 @@ def get_sheets_data(brand):
         print(f"❌ 讀取 Google Sheets 失敗：{e}")
         return None
 
-def is_relevant_question(user_question):
-    """讓 ChatGPT 判斷問題是否與建材相關"""
-    prompt = f"這個問題是否與建材、品牌、型號、花色或技術文件相關？請回答「是」或「否」。問題：{user_question}"
-
-    client = openai.Client(api_key=OPENAI_API_KEY)
-
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo-0125",
-        messages=[{"role": "system", "content": "請判斷問題是否與建材相關，只回答「是」或「否」"},
-                  {"role": "user", "content": prompt}]
-    )
-
-    return "是" in response.choices[0].message.content
-
 def ask_chatgpt(user_question, formatted_text):
     """讓 ChatGPT 讀取 Google Sheets 內容並條列式回答用戶問題"""
+    if formatted_text is None:
+        return "⚠️ 無法取得資料，請檢查 Google Sheets 設定。"
 
     prompt = f"""
     你是一位建材專家，以下是最新的建材資料庫：
@@ -116,8 +103,7 @@ def ask_chatgpt(user_question, formatted_text):
 
     用戶的問題是：「{user_question}」
     請提供完整的建材資訊，列點詳細回答，且全部使用繁體中文。
-    如果問題與建材無關，請回答如下：
-   「請提供您的建材品牌和型號以做查詢。」。
+    如果問題與建材無關，請回答：「請提供您的建材品牌和型號以做查詢。」。
     """
 
     models_to_try = ["gpt-3.5-turbo", "gpt-3.5-turbo-0125", "gpt-3.5-turbo-16k"]
@@ -129,7 +115,8 @@ def ask_chatgpt(user_question, formatted_text):
             response = client.chat.completions.create(
                 model=model,
                 messages=[{"role": "system", "content": "你是一位建材專家，專門回答與建材相關的問題。"},
-                          {"role": "user", "content": prompt}]
+                          {"role": "user", "content": prompt}],
+                timeout=10  # ✅ 限制 10 秒超時
             )
 
             if response and response.choices:
@@ -165,16 +152,17 @@ def handle_message(event):
     user_message = event.message.text.strip()
     reply_token = event.reply_token  
 
-    if not is_relevant_question(user_message):
-        reply_text = "⚠️ 請詢問與建材、品牌、型號、花色或技術文件相關的問題。"
+    brand = fuzzy_match_brand(user_message)
+    if brand:
+        sheet_data = get_sheets_data(brand)
+        formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data.items()) if sheet_data else None
+        reply_text = ask_chatgpt(user_message, formatted_text)
     else:
-        brand = fuzzy_match_brand(user_message)
-        if brand:
-            sheet_data = get_sheets_data(brand)
-            formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data.items())
-            reply_text = ask_chatgpt(user_message, formatted_text)
-        else:
-            reply_text = "⚠️ 請先提供品牌名稱，才能查詢型號資訊。"
+        reply_text = "⚠️ 請先提供品牌名稱，才能查詢型號資訊。"
 
-    reply_message = ReplyMessageRequest(reply_token=reply_token, messages=[TextMessage(text=reply_text)])
-    line_bot_api.reply_message(reply_message)
+    try:
+        reply_message = ReplyMessageRequest(reply_token=reply_token, messages=[TextMessage(text=reply_text)])
+        line_bot_api.reply_message(reply_message)
+    except Exception as e:
+        print(f"❌ LINE Bot 回覆錯誤: {e}")
+
