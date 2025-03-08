@@ -79,42 +79,43 @@ def get_all_sheets_data():
 openai.api_key = OPENAI_API_KEY
 import openai
 
-def ask_chatgpt(user_question):
-    """讓 ChatGPT 讀取 Google Sheets 內容並回答用戶問題"""
-    knowledge_base = get_all_sheets_data()  # 讀取最新的建材資料
-    
-    if not knowledge_base:
-        return "❌ 目前無法讀取建材資料，請稍後再試。"
-    
-    # 組合建材資料庫內容
-    formatted_text = "\n".join(
-        f"📂 分類：{sheet_name}\n" + "\n".join(
-            ", ".join(f"{key}：{value}" for key, value in row.items()) for row in records
-        )
-        for sheet_name, records in knowledge_base.items()
-    )
-    
+def ask_chatgpt(user_question, formatted_text):
+    """讓 ChatGPT 讀取 Google Sheets 內容並條列式回答用戶問題"""
+
     prompt = f"""
     你是一位建材專家，以下是最新的建材資料庫：
     {formatted_text}
-    
+
     用戶的問題是：「{user_question}」
-    請根據建材資料庫，讀取所有分頁的資料，將所有資訊以條列方式回答，並使用繁體中文。
-    若問題與建材無關，請回覆：「這個問題與建材無關，我無法解答。」
+    請根據建材資料提供的型號，完整詳細列點，且全部使用繁體中文。
+    如果問題與建材無關，請回答：「這個問題與建材無關，我無法解答。」。
     """
-    
-    client = openai.OpenAI(api_key=OPENAI_API_KEY)
-    
-    # 根據可用的 ChatGPT 模型自動選擇
-    response = client.chat.completions.create(
-        model=None,  # 不限制特定模型，由 API 決定最適合的
-        messages=[
-            {"role": "system", "content": "你是一位建材專家，專門回答與建材相關的問題。"},
-            {"role": "user", "content": prompt}
-        ]
-    )
-    
-    return response.choices[0].message.content
+
+    # ✅ 順序嘗試多個 GPT-3.5 變體，確保至少有一個可用
+    models_to_try = ["gpt-3.5-turbo", "gpt-3.5-turbo-0125", "gpt-3.5-turbo-16k"]
+
+    for model in models_to_try:
+        try:
+            response = openai.ChatCompletion.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": "你是一位建材專家，專門回答與建材相關的問題。"},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+
+            # ✅ 確保 response 有效
+            if response and "choices" in response and response.choices:
+                return response["choices"][0]["message"]["content"]
+        
+        except openai.error.InvalidRequestError as e:
+            print(f"⚠️ 無法使用 {model}，錯誤: {str(e)}，嘗試下一個...")
+            continue  # API 拒絕這個 model，嘗試下一個
+        
+        except openai.error.OpenAIError as e:
+            return f"❌ OpenAI API 錯誤: {str(e)}"
+
+    return "⚠️ 抱歉，目前無法取得建材資訊，請稍後再試。"
 
 # ✅ 設定 LINE Bot
 configuration = Configuration(access_token=LINE_CHANNEL_ACCESS_TOKEN)
