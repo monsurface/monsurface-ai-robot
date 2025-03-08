@@ -98,7 +98,7 @@ def ask_chatgpt(user_question):
     {formatted_text}
 
     用戶的問題是：「{user_question}」
-    請根據建材資料以條列式回答問題。
+    請根據建材資料以條列式回答問題，且都使用繁體中文。
     如果問題與建材無關，請回答：「這個問題與建材無關，我無法解答。」。
     """
 
