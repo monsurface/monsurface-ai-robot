@@ -77,6 +77,7 @@ def get_all_sheets_data():
 
 # ✅ 設定 OpenAI API
 openai.api_key = OPENAI_API_KEY
+import openai
 
 def ask_chatgpt(user_question, formatted_text):
     """讓 ChatGPT 讀取 Google Sheets 內容並條列式回答用戶問題"""
@@ -106,13 +107,10 @@ def ask_chatgpt(user_question, formatted_text):
             # ✅ 確保 response 有效
             if response and "choices" in response and response.choices:
                 return response["choices"][0]["message"]["content"]
-        
-        except openai.error.InvalidRequestError as e:
-            print(f"⚠️ 無法使用 {model}，錯誤: {str(e)}，嘗試下一個...")
-            continue  # API 拒絕這個 model，嘗試下一個
-        
-        except openai.error.OpenAIError as e:
-            return f"❌ OpenAI API 錯誤: {str(e)}"
+
+        except openai.OpenAIError as e:
+            print(f"⚠️ OpenAI API 錯誤: {str(e)}，嘗試下一個模型...")
+            continue  # 嘗試下一個模型
 
     return "⚠️ 抱歉，目前無法取得建材資訊，請稍後再試。"
 
