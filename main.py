@@ -90,7 +90,7 @@ def ask_chatgpt(user_question):
     for sheet_name, records in knowledge_base.items():
         formatted_text += f"\n📂 分類：{sheet_name}\n"
         for row in records:
-            details = ", ".join([f"{key}：{value}" for key, value in row.items()])
+            details = "\n".join([f"- {key}：{value}" for key, value in row.items()])
             formatted_text += f"{details}\n"
 
     prompt = f"""
@@ -98,21 +98,17 @@ def ask_chatgpt(user_question):
     {formatted_text}
 
     用戶的問題是：「{user_question}」
-    請根據建材資料詳細回答問題。
+    請根據建材資料詳細回答問題，並將回應格式化為條列式。
     如果問題與建材無關，請回答：「這個問題與建材無關，我無法解答。」。
     """
 
-    client = openai.OpenAI(api_key=OPENAI_API_KEY)  # 使用 OpenAI 客戶端
-
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",  # 🚀 使用 gpt-3.5-turbo，避免 token 過長問題
-        messages=[
-            {"role": "system", "content": "你是一位建材專家，專門回答與建材相關的問題。"},
-            {"role": "user", "content": prompt}
-        ]
+    response = openai.Completion.create(
+        model="gpt-3.5-turbo-instruct",  # 🚀 改用 gpt-3.5-turbo-instruct
+        prompt=prompt,
+        max_tokens=500
     )
 
-    return response.choices[0].message.content
+    return response["choices"][0]["text"].strip()
 
 # ✅ 設定 LINE Bot
 configuration = Configuration(access_token=LINE_CHANNEL_ACCESS_TOKEN)
@@ -159,7 +155,6 @@ def handle_message(event):
     if not reply_text:
         reply_text = "⚠️ 抱歉，目前無法取得建材資訊，請稍後再試。"
 
-    # ✅ **使用 `ReplyMessageRequest` 來構建正確的回覆格式**
     reply_message = ReplyMessageRequest(
         reply_token=reply_token,
         messages=[TextMessage(text=reply_text)]
