@@ -102,13 +102,13 @@ def ask_chatgpt(user_question):
     如果問題與建材無關，請回答：「這個問題與建材無關，我無法解答。」。
     """
 
-    response = openai.Completion.create(
+    response = openai.completions.create(
         model="gpt-3.5-turbo-instruct",  # 🚀 改用 gpt-3.5-turbo-instruct
         prompt=prompt,
         max_tokens=500
     )
 
-    return response["choices"][0]["text"].strip()
+    return response.choices[0].text.strip()
 
 # ✅ 設定 LINE Bot
 configuration = Configuration(access_token=LINE_CHANNEL_ACCESS_TOKEN)
