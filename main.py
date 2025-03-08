@@ -64,6 +64,7 @@ def get_sheets_data(brand):
     """根據品牌讀取對應的 Google Sheets 數據"""
     sheet_id = BRAND_SHEETS.get(brand)
     if not sheet_id:
+        print(f"⚠️ 品牌 {brand} 沒有對應的 Google Sheets ID")
         return None
 
     try:
@@ -116,7 +117,7 @@ def ask_chatgpt(user_question, formatted_text):
                 model=model,
                 messages=[{"role": "system", "content": "你是一位建材專家，專門回答與建材相關的問題。"},
                           {"role": "user", "content": prompt}],
-                timeout=10  # ✅ 限制 10 秒超時
+                timeout=10
             )
 
             if response and response.choices:
@@ -152,6 +153,8 @@ def handle_message(event):
     user_message = event.message.text.strip()
     reply_token = event.reply_token  
 
+    print(f"📩 收到訊息：{user_message}")
+
     brand = fuzzy_match_brand(user_message)
     if brand:
         sheet_data = get_sheets_data(brand)
@@ -160,9 +163,11 @@ def handle_message(event):
     else:
         reply_text = "⚠️ 請先提供品牌名稱，才能查詢型號資訊。"
 
+    print(f"💬 準備回覆：{reply_text}")
+
     try:
         reply_message = ReplyMessageRequest(reply_token=reply_token, messages=[TextMessage(text=reply_text)])
         line_bot_api.reply_message(reply_message)
+        print("✅ 回覆成功")
     except Exception as e:
         print(f"❌ LINE Bot 回覆錯誤: {e}")
-
