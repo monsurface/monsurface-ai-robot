@@ -101,8 +101,7 @@ def ask_chatgpt(user_question):
     請根據建材資料詳細回答問題，並將回應格式化為條列式。
     如果問題與建材無關，請回答：「這個問題與建材無關，我無法解答。」。
     """
-
-    response = openai.ChatCompletion.create(
+    response = openai.client.chat.completions.create(
         model="gpt-3.5-turbo",  # 🚀 改用 gpt-3.5-turbo
         messages=[
             {"role": "system", "content": "你是一位建材專家，請根據用戶問題提供條列式回答。"},
