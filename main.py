@@ -4,7 +4,7 @@ import requests
 from google.oauth2.service_account import Credentials
 import openai
 import os
-from fuzzywuzzy import process
+from rapidfuzz import process
 from linebot.v3.messaging import Configuration, ApiClient, MessagingApi, ReplyMessageRequest
 from linebot.v3.webhook import WebhookHandler
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
