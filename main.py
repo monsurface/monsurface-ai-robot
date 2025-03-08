@@ -84,13 +84,21 @@ def get_sheets_data(brand):
 
             try:
                 raw_data = sheet.get_all_records(expected_headers=[])
-                if not raw_data:
-                    print(f"⚠️ {sheet_name} 分頁是空的，跳過處理。")
+
+                # ✅ 確保 `raw_data` 是 `dict`，避免 `list` 錯誤
+                if isinstance(raw_data, list):
+                    if raw_data and isinstance(raw_data[0], dict):
+                        formatted_data = {str(i): row for i, row in enumerate(raw_data)}
+                    else:
+                        print(f"⚠️ {sheet_name} 分頁格式異常，可能缺少標題列！")
+                        continue
+                elif isinstance(raw_data, dict):
+                    formatted_data = {k.replace(" ", "").strip(): v for k, v in raw_data.items()}
+                else:
+                    print(f"⚠️ {sheet_name} 分頁格式不支援！")
                     continue
 
-                # **標準化 Key (型號) 去除空格，確保比對時一致**
-                normalized_data = {k.replace(" ", "").strip(): v for k, v in raw_data.items()}
-                all_data[sheet_name] = normalized_data
+                all_data[sheet_name] = formatted_data
 
             except Exception as e:
                 print(f"❌ 讀取 {sheet_name} 分頁時發生錯誤：{e}")
@@ -106,6 +114,7 @@ def get_sheets_data(brand):
     except Exception as e:
         print(f"❌ 讀取 Google Sheets 失敗：{e}")
         return None
+
 
 def ask_chatgpt(user_question, formatted_text):
     """讓 ChatGPT 讀取 Google Sheets 內容並條列式回答用戶問題"""
