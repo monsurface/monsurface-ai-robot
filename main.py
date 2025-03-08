@@ -110,7 +110,8 @@ def ask_chatgpt(user_question, formatted_text):
     {formatted_text}
 
     用戶的問題是：「{user_question}」
-    請提供完整詳細的建材資訊，並使用條列式格式回答。
+    請根據建材資料提供的型號，完整詳細列點，且全部使用繁體中文。
+    如果問題與建材無關，請回答：「請提供您的建材品牌和型號以做查詢。」。
     """
 
     models_to_try = ["gpt-3.5-turbo", "gpt-3.5-turbo-0125", "gpt-3.5-turbo-16k"]
