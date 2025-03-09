@@ -3,6 +3,8 @@ import gspread
 import requests
 import openai
 import os
+import pytz
+from datetime import datetime
 from google.oauth2.service_account import Credentials
 from rapidfuzz import process
 from linebot.v3.messaging import Configuration, ApiClient, MessagingApi, ReplyMessageRequest
@@ -65,7 +67,7 @@ credentials = Credentials.from_service_account_file(
 client = gspread.authorize(credentials)
 
 def check_user_permission(user_id):
-    """🔍 檢查使用者是否有權限，並更新使用次數"""
+    """🔍 檢查使用者是否有權限，並更新使用次數與最後查詢時間（台灣時間）"""
     try:
         security_sheet = client.open_by_key(SECURITY_SHEET_ID).sheet1
         data = security_sheet.get_all_records()
@@ -80,12 +82,13 @@ def check_user_permission(user_id):
                     new_usage_count = usage_count + 1
                     security_sheet.update_cell(index, 3, new_usage_count)  # C列（使用次數）
 
-                    # ✅ **更新最後查詢時間**
-                    from datetime import datetime
-                    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    # ✅ **設定台灣時間**
+                    taiwan_tz = pytz.timezone("Asia/Taipei")
+                    current_time = datetime.now(taiwan_tz).strftime("%Y-%m-%d %H:%M:%S")
                     security_sheet.update_cell(index, 4, current_time)  # D列（最後查詢時間）
 
                     print(f"🔍 找到使用者 {user_id}，權限：{row['是否有權限']}，使用次數更新為 {new_usage_count}")
+                    print(f"🕒 更新最後查詢時間（台灣時間）：{current_time}")
                     return True  # ✅ **有權限，允許查詢**
                 else:
                     print(f"🚫 使用者 {user_id} 沒有權限")
