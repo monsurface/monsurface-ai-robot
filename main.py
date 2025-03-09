@@ -203,7 +203,9 @@ def callback():
 
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
+    
     """處理使用者傳送的訊息"""
+    
     user_id = event.source.user_id  
     if not check_user_permission(user_id):
         reply_text = "❌ 您沒有查詢權限，請聯絡管理員開通權限。"
