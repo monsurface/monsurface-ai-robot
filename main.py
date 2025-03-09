@@ -137,6 +137,7 @@ def ask_chatgpt(user_question, formatted_text):
 
     用戶的問題是：「{user_question}」
     用戶會提供類似品牌abc 型號123的資訊，
+    或是abc(品牌）123（型號）的資訊
     根據用戶提供的品牌和型號，
     提供完整的建材資訊，列點詳細回答，並全部使用繁體中文。
     如果問題與建材無關，請回答：
