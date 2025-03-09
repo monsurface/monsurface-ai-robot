@@ -18,16 +18,28 @@ LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
 LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
 DROPBOX_URL = os.getenv("DROPBOX_URL")
 
-# ✅ **完整品牌對應 Google Sheet ID**
+# ✅ 各品牌對應 Google Sheet ID
 BRAND_SHEETS = {
     "富美家": os.getenv("SPREADSHEET_ID_A"),
+    "新日綠建材": os.getenv("SPREADSHEET_ID_B"),
+    "鉅莊-樂維LAVI": os.getenv("SPREADSHEET_ID_C"),
     "愛卡AICA-愛克板": os.getenv("SPREADSHEET_ID_D"),
+    "松華-松耐特及系列品牌": os.getenv("SPREADSHEET_ID_E"),
+    "吉祥": os.getenv("SPREADSHEET_ID_F"),
+    "華旗": os.getenv("SPREADSHEET_ID_G"),
+    "科彰": os.getenv("SPREADSHEET_ID_H"),
+    "華槶線板": os.getenv("SPREADSHEET_ID_I"),
+    "魔拉頓 Melatone": os.getenv("SPREADSHEET_ID_J"),
+    "利明礦石軟片": os.getenv("SPREADSHEET_ID_K"),
+    "熱門主推": os.getenv("SPREADSHEET_ID_L"),
 }
 
-# ✅ 品牌名稱別名（增加匹配範圍）
+# ✅ 品牌名稱別名（用於模糊匹配）
 BRAND_ALIASES = {
     "富美家": ["富美家", "Formica"],
     "愛卡AICA-愛克板": ["愛卡", "AICA", "愛克板"],
+    "鉅莊-樂維LAVI": ["鉅莊", "樂維", "LAVI"],
+    "魔拉頓 Melatone": ["魔拉頓", "Melatone"],
 }
 
 # ✅ **下載 Google API 憑證**
@@ -124,8 +136,9 @@ def ask_chatgpt(user_question, formatted_text):
     {formatted_text}
 
     用戶的問題是：「{user_question}」
-    請根據建材資料提供的型號，完整詳細列點，且全部使用繁體中文。
-    如果問題與建材無關，請回答：「請提供您的建材品牌和型號以做查詢。」。
+    請提供完整的建材資訊，列點詳細回答，並全部使用繁體中文。
+    如果問題與建材無關，請回答：
+    「請提供您的建材品牌和型號以做查詢。」。
     """
 
     models_to_try = ["gpt-3.5-turbo", "gpt-3.5-turbo-0125", "gpt-3.5-turbo-16k"]
@@ -173,8 +186,8 @@ def handle_message(event):
     """處理使用者傳送的訊息"""
     user_message = event.message.text.strip()
 
-    # ✅ **去除使用者輸入的所有空格**
-    user_message = user_message.replace(" ", "")
+    # ✅ **去除多餘空格，確保比對時不受影響**
+    user_message = " ".join(user_message.split())
 
     reply_token = event.reply_token  
     print(f"📩 收到訊息：{user_message}")
@@ -187,7 +200,7 @@ def handle_message(event):
 
         if sheet_data:
             formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data.items())
-            reply_text = ask_chatgpt(user_message, formatted_text)
+            reply_text = ask_chatgpt(user_message.replace(" ", ""), formatted_text)  # 送入 ChatGPT 時也去除空格
         else:
             reply_text = f"⚠️ 目前無法取得 **{matched_brand}** 的建材資訊。"
     else:
