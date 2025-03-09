@@ -13,7 +13,7 @@ from linebot.v3.webhooks import MessageEvent, TextMessageContent
 from linebot.v3.messaging.models import TextMessage
 
 instruction_text = """
-🍀**瑰貝鈺AI建材小幫手 服務指南**☘️
+🍀瑰貝鈺AI建材小幫手-服務指南☘️
 
 🔹 **請依照以下方式查詢建材資訊：**
 1️⃣ 查詢建材資訊：請輸入品牌與型號，例如：「品牌 ABC 型號 123」。
