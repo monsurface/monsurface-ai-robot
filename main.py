@@ -215,10 +215,15 @@ def handle_message(event):
     else:
         user_message = " ".join(event.message.text.strip().split())
 
-        # ✅ **當使用者輸入「熱門主推」，直接回傳 Google Sheets 連結**
+        # ✅ **當使用者輸入「熱門主推」，回傳 Google Sheets 連結**
         if user_message == "熱門主推":
             hot_sheet_url = os.getenv("HOT_SHEET_URL", "⚠️ 未設定熱門主推連結")
             reply_text = f"📌 **熱門主推建材資訊**\n請點擊以下連結查看：\n{hot_sheet_url}"
+        
+        # ✅ **當使用者輸入「技術資訊」，回傳技術資訊的 Google Sheets 連結**
+        elif user_message == "技術資訊":
+            tech_sheet_url = os.getenv("TECH_SHEET_URL", "⚠️ 未設定技術資訊連結")
+            reply_text = f"🔧 **技術資訊總覽**\n請點擊以下連結查看：\n{tech_sheet_url}"
         
         else:
             matched_brand = fuzzy_match_brand(user_message)
