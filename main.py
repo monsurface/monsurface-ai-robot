@@ -138,7 +138,7 @@ def ask_chatgpt(user_question, formatted_text):
     用戶的問題是：「{user_question}」
     請提供完整的建材資訊，列點詳細回答，並全部使用繁體中文。
     如果問題與建材無關，請回答：
-    「請提供您的建材品牌和型號以做查詢。」。
+    「請提供您的建材品牌和型號以做查詢，譬如品牌abc 型號123。」。
     """
 
     models_to_try = ["gpt-3.5-turbo", "gpt-3.5-turbo-0125", "gpt-3.5-turbo-16k"]
@@ -204,7 +204,7 @@ def handle_message(event):
         else:
             reply_text = f"⚠️ 目前無法取得 **{matched_brand}** 的建材資訊。"
     else:
-        reply_text = "⚠️ 請提供品牌名稱，例如：『品牌 富美家 型號 8874NM』，才能查詢建材資訊。"
+        reply_text = "⚠️ 請提供品牌名稱，例如：『品牌 abc 型號 123』，才能查詢建材資訊。"
 
     reply_message = ReplyMessageRequest(reply_token=reply_token, messages=[TextMessage(text=reply_text)])
 
