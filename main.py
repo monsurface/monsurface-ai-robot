@@ -65,18 +65,34 @@ credentials = Credentials.from_service_account_file(
 client = gspread.authorize(credentials)
 
 def check_user_permission(user_id):
-    """🔍 檢查使用者是否有權限"""
+    """🔍 檢查使用者是否有權限，並更新使用次數"""
     try:
         security_sheet = client.open_by_key(SECURITY_SHEET_ID).sheet1
         data = security_sheet.get_all_records()
 
-        for row in data:
+        for index, row in enumerate(data, start=2):  # **start=2 是因為 Google Sheets 第一行是標題**
             if row["Line User ID"].strip() == user_id:
-                print(f"🔍 找到使用者 {user_id}，權限：{row['是否有權限']}")
-                return row["是否有權限"].strip() == "是"
-                
+                has_permission = row["是否有權限"].strip() == "是"
+                usage_count = int(row["使用次數"]) if row["使用次數"] else 0  # 轉換為數字，若為空則設為 0
+
+                if has_permission:
+                    # ✅ **更新使用次數**
+                    new_usage_count = usage_count + 1
+                    security_sheet.update_cell(index, 3, new_usage_count)  # C列（使用次數）
+
+                    # ✅ **更新最後查詢時間**
+                    from datetime import datetime
+                    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    security_sheet.update_cell(index, 4, current_time)  # D列（最後查詢時間）
+
+                    print(f"🔍 找到使用者 {user_id}，權限：{row['是否有權限']}，使用次數更新為 {new_usage_count}")
+                    return True  # ✅ **有權限，允許查詢**
+                else:
+                    print(f"🚫 使用者 {user_id} 沒有權限")
+                    return False  # ❌ **無權限，禁止查詢**
+
         print(f"⚠️ 使用者 {user_id} 未登錄於權限表")
-        return False
+        return False  # ❌ **找不到使用者，禁止查詢**
 
     except Exception as e:
         print(f"❌ 讀取權限表失敗：{e}")
