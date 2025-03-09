@@ -159,12 +159,7 @@ def ask_chatgpt(user_question, formatted_text):
 
     用戶的問題是：「{user_question}」
     請根據提供的品牌與型號，完整提供建材資訊，使用繁體中文並以條列式回答。
-    如果無法查詢到建材資訊，請回答：
-    「🔹 請依照以下方式查詢建材資訊：
-1️⃣ 查詢建材資訊：請輸入品牌與型號，例如：「品牌 ABC 型號 123」。
-2️⃣ 獲取熱門建材推薦：請輸入「熱門主推」，即可查看最新主打建材資訊。
-3️⃣ 查詢技術資訊：請輸入「技術資訊」，獲取所有建材品牌的技術資料連結。」。
-    """
+    如果無法查詢到建材資訊，請回答：instruction_text
 
     models_to_try = ["gpt-3.5-turbo", "gpt-3.5-turbo-0125", "gpt-3.5-turbo-16k"]
     client = openai.Client(api_key=OPENAI_API_KEY)
