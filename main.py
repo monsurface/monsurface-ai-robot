@@ -3,7 +3,6 @@ import gspread
 import requests
 import openai
 import os
-import time  # 新增 time 模組用於重試機制
 from google.oauth2.service_account import Credentials
 from rapidfuzz import process
 from linebot.v3.messaging import Configuration, ApiClient, MessagingApi, ReplyMessageRequest
@@ -80,56 +79,53 @@ def fuzzy_match_brand(user_input):
     print(f"⚠️ 未找到匹配的品牌")
     return None
 
-def get_sheets_data(brand, retry=2):
-    """📊 根據品牌讀取對應的 Google Sheets 數據，增加重試機制"""
+def get_sheets_data(brand):
+    """📊 根據品牌讀取對應的 Google Sheets 數據，並標準化內容"""
     sheet_id = BRAND_SHEETS.get(brand)
     if not sheet_id:
         print(f"⚠️ 品牌 {brand} 沒有對應的 Google Sheets ID")
         return None
 
-    attempt = 0
-    while attempt <= retry:
-        try:
-            spreadsheet = client.open_by_key(sheet_id)
-            all_data = {}
+    try:
+        spreadsheet = client.open_by_key(sheet_id)
+        all_data = {}
 
-            for sheet in spreadsheet.worksheets():
-                sheet_name = sheet.title
-                print(f"📂 讀取分頁：{sheet_name}")
+        for sheet in spreadsheet.worksheets():
+            sheet_name = sheet.title
+            print(f"📂 讀取分頁：{sheet_name}")
 
-                try:
-                    raw_data = sheet.get_all_records(expected_headers=[])
+            try:
+                raw_data = sheet.get_all_records(expected_headers=[])
 
-                    # ✅ 確保 `raw_data` 是 `list`，並轉換格式
-                    if isinstance(raw_data, list):
-                        if raw_data and isinstance(raw_data[0], dict):
-                            formatted_data = {str(i): row for i, row in enumerate(raw_data)}
-                        else:
-                            print(f"⚠️ {sheet_name} 分頁格式異常，可能缺少標題列！")
-                            continue
+                # ✅ 確保 `raw_data` 是 `dict`，避免 `list` 錯誤
+                if isinstance(raw_data, list):
+                    if raw_data and isinstance(raw_data[0], dict):
+                        formatted_data = {str(i): row for i, row in enumerate(raw_data)}
                     else:
-                        formatted_data = raw_data
+                        print(f"⚠️ {sheet_name} 分頁格式異常，可能缺少標題列！")
+                        continue
+                elif isinstance(raw_data, dict):
+                    formatted_data = {k.replace(" ", "").strip(): v for k, v in raw_data.items()}
+                else:
+                    print(f"⚠️ {sheet_name} 分頁格式不支援！")
+                    continue
 
-                    all_data[sheet_name] = formatted_data
+                all_data[sheet_name] = formatted_data
 
-                except Exception as e:
-                    print(f"❌ 讀取 {sheet_name} 分頁時發生錯誤：{e}")
-                    continue  
+            except Exception as e:
+                print(f"❌ 讀取 {sheet_name} 分頁時發生錯誤：{e}")
+                continue  
 
-            if all_data:
-                print("✅ 成功讀取 Google Sheets！")
-                return all_data
-            else:
-                print(f"⚠️ 該品牌 {brand} 的 Google Sheets 沒有可用數據")
-                return None
+        if all_data:
+            print("✅ 成功讀取 Google Sheets！")
+            return all_data
+        else:
+            print("⚠️ 該品牌的 Google Sheets 沒有可用數據")
+            return None
 
-        except Exception as e:
-            print(f"❌ 讀取 Google Sheets 失敗（嘗試 {attempt+1}/{retry+1}）：{e}")
-            attempt += 1
-            time.sleep(1)  # 避免 Google API 緩存機制影響，等待 1 秒後重試
-
-    print("🚨 Google Sheets API 多次請求失敗，請檢查 API 配置")
-    return None
+    except Exception as e:
+        print(f"❌ 讀取 Google Sheets 失敗：{e}")
+        return None
 
 
 def ask_chatgpt(user_question, formatted_text):
@@ -189,11 +185,13 @@ def callback():
 def handle_message(event):
     """處理使用者傳送的訊息"""
     user_message = event.message.text.strip()
+
+    # ✅ **去除多餘空格，確保比對時不受影響**
+    user_message = " ".join(user_message.split())
+
     reply_token = event.reply_token  
+    print(f"📩 收到訊息：{user_message}")
 
-    print(f"📩 收到訊息：{user_message}")  # Debug 訊息
-
-    # ✅ **品牌識別**
     matched_brand = fuzzy_match_brand(user_message)
 
     if matched_brand:
@@ -201,35 +199,13 @@ def handle_message(event):
         sheet_data = get_sheets_data(matched_brand)
 
         if sheet_data:
-            # ✅ **移除型號內空格，避免查詢不到**
-            clean_query = user_message.replace(" ", "").strip().upper()
-            
-            # **嘗試模糊匹配型號**
-            possible_matches = []
-            for sheet_name, records in sheet_data.items():
-                for row in records.values():
-                    for key, value in row.items():
-                        if isinstance(value, str):
-                            clean_value = value.replace(" ", "").strip().upper()
-                            if clean_query in clean_value or process.extractOne(clean_query, [clean_value])[1] > 85:
-                                possible_matches.append(row)
-
-            if possible_matches:
-                reply_text = f"🔍 **{matched_brand}** 相關建材：\n"
-                for match in possible_matches[:3]:  # 限制最多 3 筆結果
-                    reply_text += "\n".join([f"{k}: {v}" for k, v in match.items()]) + "\n\n"
-            else:
-                reply_text = f"⚠️ **{matched_brand}** 資料庫中沒有找到型號 **「{user_message}」**，請確認是否有誤。"
-
+            formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data.items())
+            reply_text = ask_chatgpt(user_message.replace(" ", ""), formatted_text)  # 送入 ChatGPT 時也去除空格
         else:
             reply_text = f"⚠️ 目前無法取得 **{matched_brand}** 的建材資訊。"
-
     else:
-        reply_text = "⚠️ 請提供品牌名稱，例如：『富美家 8874NM』，才能查詢建材資訊。"
+        reply_text = "⚠️ 請提供品牌名稱，例如：『品牌 富美家 型號 8874NM』，才能查詢建材資訊。"
 
-    print(f"📤 回應使用者：{reply_text}")  # Debug 訊息
-
-    # ✅ **回應 LINE 訊息**
     reply_message = ReplyMessageRequest(reply_token=reply_token, messages=[TextMessage(text=reply_text)])
 
     try:
