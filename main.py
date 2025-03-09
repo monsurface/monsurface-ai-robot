@@ -204,8 +204,7 @@ def handle_message(event):
         user_message = " ".join(event.message.text.strip().split())
         matched_brand = fuzzy_match_brand(user_message)
         sheet_data = get_sheets_data(matched_brand) if matched_brand else None
-        reply_text = ask_chatgpt(user_message, sheet_data) 
-        if sheet_data else
+        reply_text = ask_chatgpt(user_message, sheet_data) if sheet_data else
          " 🔹 請依照以下方式查詢建材資訊：
         1.查詢建材資訊：請輸入品牌與型號，例如：「品牌 ABC 型號 123」。
         2.獲取熱門建材推薦：請輸入「熱門主推」，即可查看最新主打建材資訊。
