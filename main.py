@@ -3,6 +3,7 @@ import gspread
 import requests
 import openai
 import os
+import datetime
 from google.oauth2.service_account import Credentials
 from rapidfuzz import process
 from linebot.v3.messaging import Configuration, ApiClient, MessagingApi, ReplyMessageRequest
@@ -17,8 +18,9 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
 LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
 DROPBOX_URL = os.getenv("DROPBOX_URL")
+SECURITY_SHEET_ID = os.getenv("SECURITY_SHEET_ID")  # 🔹 權限表 Google Sheets ID
 
-# ✅ 各品牌對應 Google Sheet ID
+# ✅ **完整品牌對應 Google Sheet ID**
 BRAND_SHEETS = {
     "富美家": os.getenv("SPREADSHEET_ID_A"),
     "新日綠建材": os.getenv("SPREADSHEET_ID_B"),
@@ -63,74 +65,26 @@ credentials = Credentials.from_service_account_file(
 )
 client = gspread.authorize(credentials)
 
-def fuzzy_match_brand(user_input):
-    """🔍 嘗試匹配最接近的品牌名稱"""
-    all_brand_names = list(BRAND_SHEETS.keys()) + [alias for aliases in BRAND_ALIASES.values() for alias in aliases]
-    match_result = process.extractOne(user_input, all_brand_names)
+def check_user_permission(user_id, user_name):
+    """📜 檢查 `securitysheet` 權限，無權限則新增用戶"""
+    sheet = client.open_by_key(SECURITY_SHEET_ID).sheet1
+    users = sheet.get_all_records()
 
-    if match_result:
-        best_match, score = match_result[:2]  # 避免解包錯誤
-        print(f"🔍 匹配品牌：{best_match}（匹配度：{score}）")
-        if score >= 70:
-            for brand, aliases in BRAND_ALIASES.items():
-                if best_match in aliases:
-                    return brand
-            return best_match
-    print(f"⚠️ 未找到匹配的品牌")
-    return None
+    for i, row in enumerate(users, start=2):
+        if row["Line User ID"] == user_id:
+            # ✅ 更新使用次數與最後查詢時間
+            usage_count = int(row["使用次數"]) + 1 if row["使用次數"] else 1
+            sheet.update(f"C{i}", [[usage_count]])
+            sheet.update(f"D{i}", [[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")]])
 
-def get_sheets_data(brand):
-    """📊 根據品牌讀取對應的 Google Sheets 數據，並標準化內容"""
-    sheet_id = BRAND_SHEETS.get(brand)
-    if not sheet_id:
-        print(f"⚠️ 品牌 {brand} 沒有對應的 Google Sheets ID")
-        return None
+            return row["是否有權限"] == "是"
 
-    try:
-        spreadsheet = client.open_by_key(sheet_id)
-        all_data = {}
-
-        for sheet in spreadsheet.worksheets():
-            sheet_name = sheet.title
-            print(f"📂 讀取分頁：{sheet_name}")
-
-            try:
-                raw_data = sheet.get_all_records(expected_headers=[])
-
-                # ✅ 確保 `raw_data` 是 `dict`，避免 `list` 錯誤
-                if isinstance(raw_data, list):
-                    if raw_data and isinstance(raw_data[0], dict):
-                        formatted_data = {str(i): row for i, row in enumerate(raw_data)}
-                    else:
-                        print(f"⚠️ {sheet_name} 分頁格式異常，可能缺少標題列！")
-                        continue
-                elif isinstance(raw_data, dict):
-                    formatted_data = {k.replace(" ", "").strip(): v for k, v in raw_data.items()}
-                else:
-                    print(f"⚠️ {sheet_name} 分頁格式不支援！")
-                    continue
-
-                all_data[sheet_name] = formatted_data
-
-            except Exception as e:
-                print(f"❌ 讀取 {sheet_name} 分頁時發生錯誤：{e}")
-                continue  
-
-        if all_data:
-            print("✅ 成功讀取 Google Sheets！")
-            return all_data
-        else:
-            print("⚠️ 該品牌的 Google Sheets 沒有可用數據")
-            return None
-
-    except Exception as e:
-        print(f"❌ 讀取 Google Sheets 失敗：{e}")
-        return None
-
+    # ✅ 新增使用者並標記為「無權限」
+    sheet.append_row([user_id, user_name, 1, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "否"])
+    return False
 
 def ask_chatgpt(user_question, formatted_text):
-    """讓 ChatGPT 讀取 Google Sheets 內容並條列式回答用戶問題"""
-    
+    """🔹 ChatGPT AI 回答"""
     prompt = f"""
     你是一位建材專家，以下是最新的建材資料庫：
     {formatted_text}
@@ -178,44 +132,36 @@ def callback():
 
     try:
         handler.handle(body, signature)
-    except Exception as e:
-        print(f"❌ Webhook Error: {e}")
+    except Exception:
         return "Error", 400
 
     return "OK", 200
 
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
-    """處理使用者傳送的訊息"""
-    user_message = event.message.text.strip()
-
-    # ✅ **去除多餘空格，確保比對時不受影響**
-    user_message = " ".join(user_message.split())
+    """📩 處理 LINE 使用者輸入"""
+    user_message = " ".join(event.message.text.strip().split())
+    user_id = event.source.user_id
+    user_name = event.source.type
 
     reply_token = event.reply_token  
-    print(f"📩 收到訊息：{user_message}")
 
-    matched_brand = fuzzy_match_brand(user_message)
-
-    if matched_brand:
-        print(f"✅ 確認品牌：{matched_brand}")
-        sheet_data = get_sheets_data(matched_brand)
-
-        if sheet_data:
-            formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data.items())
-            reply_text = ask_chatgpt(user_message.replace(" ", ""), formatted_text)  # 送入 ChatGPT 時也去除空格
-        else:
-            reply_text = f"⚠️ 目前無法取得 **{matched_brand}** 的建材資訊。"
+    if not check_user_permission(user_id, user_name):
+        reply_text = "⚠️ 你沒有查詢權限，請聯絡管理員開通權限。"
     else:
-        reply_text = "⚠️ 請提供品牌名稱，例如：『品牌 abc 型號 123』，查詢建材資訊。"
+        matched_brand = fuzzy_match_brand(user_message)
 
-    reply_message = ReplyMessageRequest(reply_token=reply_token, messages=[TextMessage(text=reply_text)])
+        if matched_brand:
+            sheet_data = get_sheets_data(matched_brand)
+            if sheet_data:
+                formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data.items())
+                reply_text = ask_chatgpt(user_message.replace(" ", ""), formatted_text)
+            else:
+                reply_text = f"⚠️ 無法找到 **{matched_brand}** 的建材資訊。"
+        else:
+            reply_text = "⚠️ 請提供品牌名稱，例如：『富美家 8874NM』，才能查詢建材資訊。"
 
-    try:
-        line_bot_api.reply_message(reply_message)
-        print(f"✅ 成功回應 LINE 訊息")
-    except Exception as e:
-        print(f"❌ LINE Bot 回覆錯誤: {e}")
+    line_bot_api.reply_message(ReplyMessageRequest(reply_token=reply_token, messages=[TextMessage(text=reply_text)]))
 
 if __name__ == "__main__":
     from waitress import serve
