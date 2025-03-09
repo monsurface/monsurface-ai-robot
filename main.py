@@ -204,10 +204,12 @@ def handle_message(event):
         user_message = " ".join(event.message.text.strip().split())
         matched_brand = fuzzy_match_brand(user_message)
         sheet_data = get_sheets_data(matched_brand) if matched_brand else None
-        reply_text = ask_chatgpt(user_message, sheet_data) if sheet_data else "🔹 請依照以下方式查詢建材資訊：
-1️⃣ 查詢建材資訊：請輸入品牌與型號，例如：「品牌 ABC 型號 123」。
-2️⃣ 獲取熱門建材推薦：請輸入「熱門主推」，即可查看最新主打建材資訊。
-3️⃣ 查詢技術資訊：請輸入「技術資訊」，獲取所有建材品牌的技術資料連結。  "
+        reply_text = ask_chatgpt(user_message, sheet_data) 
+        if sheet_data else
+         " 🔹 請依照以下方式查詢建材資訊：
+        1.查詢建材資訊：請輸入品牌與型號，例如：「品牌 ABC 型號 123」。
+        2.獲取熱門建材推薦：請輸入「熱門主推」，即可查看最新主打建材資訊。
+        3.查詢技術資訊：請輸入「技術資訊」，獲取所有建材品牌的技術資料連結。"
 
     line_bot_api.reply_message(ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=reply_text)]))
 
