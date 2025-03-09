@@ -203,58 +203,32 @@ def callback():
 
     return "OK", 200
 
-handler.add(MessageEvent, message=TextMessageContent)
+@handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
     """處理使用者傳送的訊息"""
-
-    user_id = event.source.user_id
+    user_id = event.source.user_id  
 
     # 檢查使用者權限
     if not check_user_permission(user_id):
-        reply_text = "❌ 您沒有查詢權限，請聯絡管理員。"
-        
-        # 回傳訊息給 LINE
-        reply_message = ReplyMessageRequest(
-            reply_token=event.reply_token,
-            messages=[TextMessage(text=reply_text)]
-        )
-        line_bot_api.reply_message(reply_message)
-        return  # **終止函式，不讓沒有權限的使用者繼續執行下去**
-
-    # 解析使用者訊息
-    user_message = " ".join(event.message.text.strip().split())
-
-    # **當使用者輸入「熱門主推」，直接回傳 Google Sheets 連結**
-    if user_message == "熱門主推":
-        hot_sheet_url = os.getenv("HOT_SHEET_URL", "未設定熱門主推連結")
-        reply_text = f"📌 **熱門主推建材資訊**\n請點擊以下連結查看：\n{hot_sheet_url}"
-
-        reply_message = ReplyMessageRequest(
-            reply_token=event.reply_token,
-            messages=[TextMessage(text=reply_text)]
-        )
-        line_bot_api.reply_message(reply_message)
-        return  # **直接回應，不繼續執行其他邏輯**
-
-    # **繼續處理一般查詢**
-    matched_brand = fuzzy_match_brand(user_message)
-
-    if matched_brand:
-        sheet_data = get_sheets_data(matched_brand)
-        if sheet_data:
-            formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data.items())
-            reply_text = ask_chatgpt(user_message, formatted_text)
-        else:
-            reply_text = f"⚠️ 無法取得 **{matched_brand}** 的建材資訊，請重新確認型號或詢問瑰貝鈺窗口。"
+        reply_text = "❌ 您沒有查詢權限，請聯絡管理員開通權限。"
+    
     else:
-        reply_text = instruction_text
+        user_message = " ".join(event.message.text.strip().split())
+
+        # ✅ **當使用者輸入「熱門主推」，直接回傳 Google Sheets 連結**
+        if user_message == "熱門主推":
+            hot_sheet_url = os.getenv("HOT_SHEET_URL", "⚠️ 未設定熱門主推連結")
+            reply_text = f"📌 **熱門主推建材資訊**\n請點擊以下連結查看：\n{hot_sheet_url}"
         
-    # 回覆查詢結果
-    reply_message = ReplyMessageRequest(
-        reply_token=event.reply_token,
-        messages=[TextMessage(text=reply_text)]
+        else:
+            matched_brand = fuzzy_match_brand(user_message)
+            sheet_data = get_sheets_data(matched_brand) if matched_brand else None
+            reply_text = ask_chatgpt(user_message, sheet_data) if sheet_data else instruction_text
+
+    # 回應使用者
+    line_bot_api.reply_message(
+        ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=reply_text)])
     )
-    line_bot_api.reply_message(reply_message)
 
 if __name__ == "__main__":
     from waitress import serve
