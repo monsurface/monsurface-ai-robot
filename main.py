@@ -66,22 +66,24 @@ credentials = Credentials.from_service_account_file(
 client = gspread.authorize(credentials)
 
 def check_user_permission(user_id, user_name):
-    """📜 檢查 `securitysheet` 權限，無權限則新增用戶"""
-    sheet = client.open_by_key(SECURITY_SHEET_ID).sheet1
-    users = sheet.get_all_records()
-
-    for i, row in enumerate(users, start=2):
-        if row["Line User ID"] == user_id:
-            # ✅ 更新使用次數與最後查詢時間
-            usage_count = int(row["使用次數"]) + 1 if row["使用次數"] else 1
-            sheet.update(f"C{i}", [[usage_count]])
-            sheet.update(f"D{i}", [[datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")]])
-
-            return row["是否有權限"] == "是"
-
-    # ✅ 新增使用者並標記為「無權限」
-    sheet.append_row([user_id, user_name, 1, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "否"])
-    return False
+    """檢查 Google Sheets 權限"""
+    try:
+        sheet = client.open_by_key(os.getenv("SECURITY_SHEET_ID")).sheet1
+        data = sheet.get_all_records()
+        
+        for row in data:
+            if row["Line User ID"].strip() == user_id:
+                print(f"🔍 找到使用者 {user_name}，權限：{row['是否有權限']}")
+                return row["是否有權限"].strip() == "是"
+        
+        # 如果找不到，新增該使用者，並預設為「否」
+        sheet.append_row([user_id, user_name, 1, "無", "否"])
+        print(f"⚠️ 新增使用者 {user_name} 至權限表，預設無權限")
+        return False
+    
+    except Exception as e:
+        print(f"❌ 讀取權限表錯誤：{e}")
+        return False
 
 def ask_chatgpt(user_question, formatted_text):
     """🔹 ChatGPT AI 回答"""
