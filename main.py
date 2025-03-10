@@ -154,11 +154,14 @@ def find_model_in_main_sheet(model):
 
         data = sheet.get_all_records()  # 讀取所有數據
 
-        for row in data:
-            sheet_model = str(row.get("型號", "")).strip()  # 避免 KeyError 並去除空格
-            subsheet_name = str(row.get("子表", "")).strip()  # 避免 KeyError 並去除空格
+        # ✅ **確保 `model` 轉為小寫**
+        model = str(model).strip().lower()
 
-            if model.strip() == sheet_model:  # **確保比對時不受空格影響**
+        for row in data:
+            sheet_model = str(row.get("型號", "")).strip().lower()  # 轉換為小寫
+            subsheet_name = str(row.get("子表", "")).strip()  # 子表名稱不影響比對
+
+            if model == sheet_model:  # **確保比對時不受空格和大小寫影響**
                 if subsheet_name and f"富美家{subsheet_name}" in SUBSHEET_IDS:
                     print(f"🔍 找到型號 {model}，對應子表：富美家{subsheet_name}")
                     return f"富美家{subsheet_name}"
@@ -193,11 +196,15 @@ def get_sheets_data_from_subsheet(subsheet_key, model):
         # 讀取所有資料
         data = sheet.get_all_records()
 
+        # ✅ **確保 `model` 轉為小寫**
+        model = str(model).strip().lower()
+
         print(f"🔍 正在 {subsheet_key} 中查找型號：{model}")
 
         for row in data:
-            sheet_model = str(row.get("型號", "")).strip()
-            if sheet_model == model.strip():
+            sheet_model = str(row.get("型號", "")).strip().lower()  # 轉換為小寫
+
+            if model == sheet_model:  # **確保比對時不受大小寫和空格影響**
                 print(f"✅ 在 {subsheet_key} 找到型號 {model}")
                 return row  # 回傳該型號的所有詳細資訊
 
