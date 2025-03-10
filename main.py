@@ -324,10 +324,8 @@ def handle_message(event):
                         formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data.items())
                         reply_text = ask_chatgpt(user_message, formatted_text)
                     else:
-                        reply_text = f"⚠️ 找不到 **{brand} {model}** 的詳細資料，請確認型號是否正確。"
-                else:
-                    reply_text = f"⚠️ 找不到 **{brand} {model}**，請確認型號是否正確。"
-
+                        reply_text = instruction_text
+                    reply_text = instruction_text
     # ✅ **回應使用者**
     line_bot_api.reply_message(
         ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=reply_text)])
