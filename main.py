@@ -35,7 +35,7 @@ SECURITY_SHEET_ID = os.getenv("SECURITY_SHEET_ID")  # ✅ 權限管理 Google Sh
 
 # ✅ 各品牌對應 Google Sheet ID
 BRAND_SHEETS = {
-    "富美家": os.getenv("SPREADSHEET_ID_A"),
+    "富美家": os.getenv("SPREADSHEET_ID_A"),  # 總表
     "新日綠建材": os.getenv("SPREADSHEET_ID_B"),
     "鉅莊-樂維LAVI": os.getenv("SPREADSHEET_ID_C"),
     "愛卡AICA-愛克板": os.getenv("SPREADSHEET_ID_D"),
@@ -46,7 +46,16 @@ BRAND_SHEETS = {
     "華槶線板": os.getenv("SPREADSHEET_ID_I"),
     "魔拉頓 Melatone": os.getenv("SPREADSHEET_ID_J"),
     "利明礦石軟片": os.getenv("SPREADSHEET_ID_K"),
-    "科定-KD": os.getenv("SPREADSHEET_ID_L"),
+    "科友-KD": os.getenv("SPREADSHEET_ID_L"),
+}
+
+# ✅ 「富美家」品牌有額外的子表
+SUBSHEET_IDS = {
+    "富美家A": os.getenv("SPREADSHEET_ID_A_A"),
+    "富美家B": os.getenv("SPREADSHEET_ID_A_B"),
+    "富美家C": os.getenv("SPREADSHEET_ID_A_C"),
+    "富美家D": os.getenv("SPREADSHEET_ID_A_D"),
+    "富美家E": os.getenv("SPREADSHEET_ID_A_E"),
 }
 
 # ✅ 品牌名稱別名（用於模糊匹配）
@@ -113,6 +122,64 @@ def check_user_permission(user_id):
     except Exception as e:
         print(f"❌ 讀取權限表失敗：{e}")
         return False
+
+def find_model_in_main_sheet(model):
+    """
+    ✅ 在總表 (富美家 SPREADSHEET_ID_A) 查詢該型號，確認它是否存在，並找到對應的子表名稱
+    """
+    spreadsheet_id = BRAND_SHEETS.get("富美家")  # 取得總表 ID
+    if not spreadsheet_id:
+        print("❌ 找不到 富美家 的 Google Sheets ID")
+        return None  # 總表不存在
+
+    try:
+        spreadsheet = client.open_by_key(spreadsheet_id)
+        sheet = spreadsheet.worksheet("總表")  # 總表名稱固定為「總表」
+        data = sheet.get_all_records()
+
+        for row in data:
+            if str(row.get("型號", "")).strip() == model:  # 避免 KeyError
+                subsheet_name = str(row.get("子表", "")).strip()
+
+                # ✅ 確保子表名稱存在，並且符合 SUBSHEET_IDS
+                if subsheet_name and f"富美家{subsheet_name}" in SUBSHEET_IDS:
+                    return f"富美家{subsheet_name}"
+
+        return None  # 沒找到則回傳 None
+
+    except Exception as e:
+        print(f"❌ 讀取富美家總表時發生錯誤：{e}")
+        return None
+
+def get_sheets_data_from_subsheet(subsheet_key, model):
+    """
+    ✅ 讀取對應的子表 (SPREADSHEET_ID_A_X) 的詳細資料
+    """
+    sheet_id = SUBSHEET_IDS.get(subsheet_key)
+
+    if not sheet_id:
+        print(f"⚠️ 無法找到對應的子表 ID：{subsheet_key}")
+        return None
+
+    try:
+        # 連接到 Google Sheets
+        spreadsheet = client.open_by_key(sheet_id)
+        sheet = spreadsheet.worksheet("子表")  # 確保所有子表名稱為「子表」
+
+        # 讀取所有資料
+        data = sheet.get_all_records()
+
+        for row in data:
+            # ✅ 避免 KeyError，並確保比對時去除空格
+            if str(row.get("型號", "")).strip() == model:
+                return row  # 回傳該型號的所有詳細資訊
+
+        print(f"⚠️ 型號 {model} 不在 {subsheet_key} 中")
+        return None  # 若查無資料，回傳 None
+
+    except Exception as e:
+        print(f"❌ 讀取子表 {subsheet_key} 失敗: {e}")
+        return None
 
 def fuzzy_match_brand(user_input):
     """🔍 嘗試匹配最接近的品牌名稱"""
@@ -205,36 +272,54 @@ def callback():
 
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
-    """處理使用者傳送的訊息"""
+    """📩 處理使用者傳送的訊息"""
     user_id = event.source.user_id  
 
-    # 檢查使用者權限
+    # ✅ **檢查使用者權限**
     if not check_user_permission(user_id):
         reply_text = "❌ 您沒有查詢權限，請聯絡管理員開通權限。"
     
     else:
         user_message = " ".join(event.message.text.strip().split())
 
-        # ✅ **當使用者輸入「熱門主推」，回傳 Google Sheets 連結**
+        # ✅ **「熱門主推」與「技術資訊」的快捷連結**
         if user_message == "熱門主推":
             hot_sheet_url = os.getenv("HOT_SHEET_URL", "⚠️ 未設定熱門主推連結")
             reply_text = f"📌 **熱門主推建材資訊**\n請點擊以下連結查看：\n{hot_sheet_url}"
         
-        # ✅ **當使用者輸入「技術資訊」，回傳技術資訊的 Google Sheets 連結**
         elif user_message == "技術資訊":
             tech_sheet_url = os.getenv("TECH_SHEET_URL", "⚠️ 未設定技術資訊連結")
             reply_text = f"🔧 **技術資訊總覽**\n請點擊以下連結查看：\n{tech_sheet_url}"
-        
-        else:
-            matched_brand = fuzzy_match_brand(user_message)
-            sheet_data = get_sheets_data(matched_brand) if matched_brand else None
-            reply_text = ask_chatgpt(user_message, sheet_data) if sheet_data else instruction_text
 
-    # 回應使用者
+        else:
+            # ✅ **解析品牌與型號**
+            words = user_message.split()
+            brand, model = words[0], words[1] if len(words) > 1 else ""
+
+            if not model:
+                reply_text = "⚠️ 請提供完整品牌與型號，例如：『富美家 8574NM』"
+            else:
+                # ✅ **第一步：在總表查找型號，獲取對應子表**
+                subsheet_key = find_model_in_main_sheet(model)
+
+                if subsheet_key and subsheet_key in SUBSHEET_IDS:
+                    # ✅ **第二步：讀取該子表的數據**
+                    sheet_data = get_sheets_data_from_subsheet(subsheet_key, model)
+
+                    if sheet_data:
+                        # ✅ **第三步：將數據傳給 ChatGPT 處理**
+                        formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data.items())
+                        reply_text = ask_chatgpt(user_message, formatted_text)
+                    else:
+                        reply_text = f"⚠️ 找不到 **{brand} {model}** 的詳細資料，請確認型號是否正確。"
+                else:
+                    reply_text = f"⚠️ 找不到 **{brand} {model}**，請確認型號是否正確。"
+
+    # ✅ **回應使用者**
     line_bot_api.reply_message(
         ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=reply_text)])
     )
-
+    
 if __name__ == "__main__":
     from waitress import serve
     print("🚀 LINE Bot 伺服器啟動中...")
