@@ -125,7 +125,7 @@ def check_user_permission(user_id):
 
 def find_model_in_main_sheet(model):
     """
-    ✅ 在總表 (富美家 SPREADSHEET_ID_A) 查詢該型號，確認它是否存在，並找到對應的子表名稱
+    ✅ 在「富美家」總表 (SPREADSHEET_ID_A) 查詢該型號，確認它是否存在，並找到對應的子表名稱
     """
     spreadsheet_id = BRAND_SHEETS.get("富美家")  # 取得總表 ID
     if not spreadsheet_id:
@@ -134,22 +134,30 @@ def find_model_in_main_sheet(model):
 
     try:
         spreadsheet = client.open_by_key(spreadsheet_id)
-        sheet = spreadsheet.worksheet("總表")  # 總表名稱固定為「總表」
-        data = sheet.get_all_records()
+        sheet = spreadsheet.worksheet("總表")  # 確保「總表」存在
+
+        data = sheet.get_all_records()  # 讀取所有數據
 
         for row in data:
-            if str(row.get("型號", "")).strip() == model:  # 避免 KeyError
-                subsheet_name = str(row.get("子表", "")).strip()
+            sheet_model = str(row.get("型號", "")).strip()  # 避免 KeyError 並去除空格
+            subsheet_name = str(row.get("子表", "")).strip()  # 避免 KeyError 並去除空格
 
-                # ✅ 確保子表名稱存在，並且符合 SUBSHEET_IDS
+            if model.strip() == sheet_model:  # **確保比對時不受空格影響**
                 if subsheet_name and f"富美家{subsheet_name}" in SUBSHEET_IDS:
+                    print(f"🔍 找到型號 {model}，對應子表：富美家{subsheet_name}")
                     return f"富美家{subsheet_name}"
 
-        return None  # 沒找到則回傳 None
+        print(f"⚠️ 在富美家總表內找不到型號 {model}")
+        return None  # 若查無資料，回傳 None
 
     except Exception as e:
         print(f"❌ 讀取富美家總表時發生錯誤：{e}")
         return None
+
+# 測試「富美家」某型號是否能正確找到子表
+test_model = "8574NM"  # 這個型號應該存在於總表
+subsheet_result = find_model_in_main_sheet(test_model)
+print(f"📌 測試結果：{subsheet_result}")
 
 def get_sheets_data_from_subsheet(subsheet_key, model):
     """
