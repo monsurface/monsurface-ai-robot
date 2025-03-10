@@ -239,7 +239,7 @@ def get_sheets_data(brand):
 
             # ✅ **確保型號統一清理格式**
             formatted_data = {
-                str(row.get("型號", "")).strip(): {k.strip(): str(v).strip() for k, v in row.items()}
+                str(row.get("型號", "")).strip(): {k.strip(): str(v).strip().lower() for k, v in row.items()}
                 for row in raw_data
                 if isinstance(row, dict) and "型號" in row
             }
@@ -394,7 +394,7 @@ def handle_message(event):
                         print(f"✅ {matched_brand} 數據載入成功，共 {len(sheet_data)} 個分頁")
                         found_model = False  # 用於檢查是否找到型號
 
-                        for sheet_name, models in sheet_data.items():
+                        for sheet_name, models.lower() in sheet_data.items():
                             if model in models:
                                 found_model = True
                                 formatted_text = "\n".join(f"{key}: {value}" for key, value in models[model].items())
