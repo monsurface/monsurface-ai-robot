@@ -94,9 +94,11 @@ def check_user_permission(user_id):
     try:
         security_sheet = client.open_by_key(SECURITY_SHEET_ID).sheet1
         data = security_sheet.get_all_records()
+        user_found = False  # 用於標記是否找到使用者
 
         for index, row in enumerate(data, start=2):  # **start=2 是因為 Google Sheets 第一行是標題**
             if row["Line User ID"].strip() == user_id:
+                user_found = True
                 has_permission = row["是否有權限"].strip() == "是"
                 usage_count = int(row["使用次數"]) if row["使用次數"] else 0  # 轉換為數字，若為空則設為 0
 
@@ -117,12 +119,25 @@ def check_user_permission(user_id):
                     print(f"🚫 使用者 {user_id} 沒有權限")
                     return False  # ❌ **無權限，禁止查詢**
 
-        print(f"⚠️ 使用者 {user_id} 未登錄於權限表")
-        return False  # ❌ **找不到使用者，禁止查詢**
+        # ✅ **如果 `user_id` 不在權限表，則新增該使用者**
+        if not user_found:
+            print(f"⚠️ 使用者 {user_id} 未登錄於權限表，正在新增...")
+
+            # ✅ **設定台灣時間**
+            taiwan_tz = pytz.timezone("Asia/Taipei")
+            current_time = datetime.now(taiwan_tz).strftime("%Y-%m-%d %H:%M:%S")
+
+            # ✅ **新增使用者資料**
+            new_user_data = [user_id, "否", 0, current_time]  # 順序：Line User ID, 是否有權限, 使用次數, 最後查詢時間
+            security_sheet.append_row(new_user_data)
+
+            print(f"✅ 成功新增使用者 {user_id}，權限設為「否」")
+            return False  # **新用戶預設沒有權限，需管理員手動修改**
 
     except Exception as e:
         print(f"❌ 讀取權限表失敗：{e}")
         return False
+
 
 def find_model_in_main_sheet(model):
     """
