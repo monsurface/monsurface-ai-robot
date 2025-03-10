@@ -224,7 +224,7 @@ def fuzzy_match_brand(user_input):
     return None
 
 def get_sheets_data(brand):
-    """📊 根據品牌讀取對應的 Google Sheets 數據，並確保型號格式統一"""
+    """📊 根據品牌讀取對應的 Google Sheets 數據（型號大小寫不敏感，確保格式一致）"""
     sheet_id = BRAND_SHEETS.get(brand)
     if not sheet_id:
         print(f"❌ 找不到品牌 {brand} 對應的 Google Sheets ID")
@@ -235,26 +235,23 @@ def get_sheets_data(brand):
         all_data = {}
 
         for sheet in spreadsheet.worksheets():
-            raw_data = sheet.get_all_records(expected_headers=[])  # 讀取分頁資料
+            raw_data = sheet.get_all_records(expected_headers=[])
 
-            # ✅ **確保型號統一清理格式**
+            # ✅ **確保型號與所有值格式一致**
             formatted_data = {
-                str(row.get("型號", "")).strip(): {k.strip(): str(v).strip().lower() for k, v in row.items()}
+                str(row.get("型號", "")).strip().lower():  # 讓型號小寫化，查詢不受大小寫影響
+                {str(k).strip(): str(v).strip() for k, v in row.items()}  # 所有欄位名稱與值都 `strip()`
                 for row in raw_data
-                if isinstance(row, dict) and "型號" in row
+                if isinstance(row, dict) and row.get("型號")  # 確保 row 是字典且有 "型號" 欄位
             }
 
-            if formatted_data:
-                all_data[sheet.title] = formatted_data  # ✅ **按分頁名稱儲存**
-                print(f"📄 讀取 {brand} 的分頁 [{sheet.title}]，共 {len(formatted_data)} 筆型號")
+            all_data.update(formatted_data)  # ✅ **確保所有型號都存進 all_data**
 
         if not all_data:
             print(f"⚠️ {brand} 的 Google Sheets 內沒有任何數據！")
         else:
-            # **列出所有可用型號（前 10 筆）**
-            all_models = [model for sheet in all_data.values() for model in sheet.keys()]
-            print(f"✅ {brand} 數據讀取成功，共 {len(all_models)} 筆型號")
-            print(f"📌 {brand} 內的可用型號（前 10 筆）：{all_models[:10]}")
+            print(f"✅ {brand} 數據讀取成功，共 {len(all_data)} 筆型號")
+            print(f"📌 {brand} 內的可用型號（前 10 筆）：{list(all_data.keys())[:10]}")
 
         return all_data if all_data else None
 
@@ -393,14 +390,17 @@ def handle_message(event):
                     else:
                         print(f"✅ {matched_brand} 數據載入成功，共 {len(sheet_data)} 個分頁")
                         found_model = False  # 用於檢查是否找到型號
+                        
+                        for sheet_name, models in sheet_data.items():  # 遍歷所有分頁與型號資料
+                          model_lower = model.lower()  # 讓 model 變小寫，確保大小寫無關
+                          models_lower = {k.lower(): v for k, v in models.items()}  # 所有型號轉小寫
 
-                        for sheet_name, models.lower() in sheet_data.items():
-                            if model in models:
-                                found_model = True
-                                formatted_text = "\n".join(f"{key}: {value}" for key, value in models[model].items())
-                                reply_text = ask_chatgpt(user_message, formatted_text)
-                                print(f"✅ 在 {sheet_name} 找到型號 {model}")
-                                break  # 找到後立即結束迴圈
+                          if model_lower in models_lower:
+                             found_model = True
+                             formatted_text = "\n".join(f"{key}: {value}" for key, value in models_lower[model_lower].items())
+                             reply_text = ask_chatgpt(user_message, formatted_text)
+                             print(f"✅ 在 {sheet_name} 找到型號 {model}")
+                             break  # 找到後立即結束迴圈
 
                         if not found_model:
                             print(f"⚠️ {matched_brand} 內找不到型號 {model}")
