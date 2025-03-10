@@ -345,7 +345,7 @@ def handle_message(event):
                 brand, model = words[1], words[3]
 
             else:
-                reply_text = "⚠️ 請提供完整品牌與型號，例如：\n『品牌 富美家 型號 8574NM』\n或『富美家 8574NM』"
+                reply_text = instruction_text
                 line_bot_api.reply_message(
                     ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=reply_text)])
                 )
@@ -359,7 +359,7 @@ def handle_message(event):
             # ✅ **檢查品牌是否存在於 BRAND_SHEETS**
             matched_brand = fuzzy_match_brand(brand)
             if not matched_brand:
-                reply_text = f"⚠️ 找不到品牌 **{brand}**，請確認品牌名稱是否正確。"
+                reply_text = instruction_text
             else:
                 # ✅ **處理 `富美家` 需要查找 `總表 -> 子表`**
                 if matched_brand == "富美家":
@@ -372,9 +372,9 @@ def handle_message(event):
                             formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data.items())
                             reply_text = ask_chatgpt(user_message, formatted_text)
                         else:
-                            reply_text = f"⚠️ 找不到 **{matched_brand} {model}** 的詳細資料，請確認型號是否正確。"
+                            reply_text = instruction_text
                     else:
-                        reply_text = f"⚠️ 找不到 **{matched_brand} {model}**，請確認型號是否正確。"
+                        reply_text = instruction_text
 
                 else:
                     # ✅ **處理其他品牌（不需要查找子表）**
@@ -391,10 +391,9 @@ def handle_message(event):
                             print(f"✅ 成功找到型號 {model}，回應使用者")
                         else:
                             print(f"⚠️ {matched_brand} 內找不到型號 {model}")
-                            reply_text = f"⚠️ 找不到 **{matched_brand} {model}**，請確認型號是否正確。"
+                            reply_text = instruction_text
                     else:
-                        reply_text = f"⚠️ 找不到品牌 **{matched_brand}** 的數據，請確認品牌名稱是否正確。"
-
+                        reply_text = instruction_text
     # ✅ **回應使用者**
     line_bot_api.reply_message(
         ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=reply_text)])
