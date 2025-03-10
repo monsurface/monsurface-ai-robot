@@ -212,6 +212,7 @@ def get_sheets_data(brand):
     """📊 根據品牌讀取對應的 Google Sheets 數據"""
     sheet_id = BRAND_SHEETS.get(brand)
     if not sheet_id:
+        print(f"❌ 找不到品牌 {brand} 對應的 Google Sheets ID")
         return None
 
     try:
@@ -220,9 +221,15 @@ def get_sheets_data(brand):
 
         for sheet in spreadsheet.worksheets():
             raw_data = sheet.get_all_records(expected_headers=[])
-            formatted_data = {str(i): row for i, row in enumerate(raw_data) if isinstance(row, dict)}
+            formatted_data = {str(row.get("型號", "")).strip(): row for row in raw_data if isinstance(row, dict)}
 
-            all_data[sheet.title] = formatted_data
+            all_data.update(formatted_data)  # ✅ **確保所有型號都存進 all_data**
+
+        if not all_data:
+            print(f"⚠️ {brand} 的 Google Sheets 內沒有任何數據！")
+        else:
+            print(f"✅ {brand} 數據讀取成功，共 {len(all_data)} 筆型號")
+            print(f"📌 {brand} 內的可用型號（前 10 筆）：{list(all_data.keys())[:10]}")
 
         return all_data if all_data else None
 
