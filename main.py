@@ -304,17 +304,19 @@ def handle_message(event):
         else:
             # ✅ **解析品牌與型號**
             words = user_message.split()
-            brand, model = words[0], words[1] if len(words) > 1 else ""
-
-            if not model:
+            if len(words) < 2:
                 reply_text = "⚠️ 請提供完整品牌與型號，例如：『富美家 8574NM』"
             else:
+                brand, model = words[0], words[1]  # **確保 model 是型號，而不是品牌名稱**
+                print(f"🔍 解析輸入：品牌 = {brand}, 型號 = {model}")
+
                 # ✅ **第一步：在總表查找型號，獲取對應子表**
                 subsheet_key = find_model_in_main_sheet(model)
 
                 if subsheet_key and subsheet_key in SUBSHEET_IDS:
                     # ✅ **第二步：讀取該子表的數據**
-                    sheet_data = get_sheets_data_from_subsheet(subsheet_key, model)
+                    sheet_data = get_sheets_data_from_subsheet(subsheet_key, model)  # **確保 model 是型號**
+                    print(f"📂 查詢子表：{subsheet_key}，型號：{model}")
 
                     if sheet_data:
                         # ✅ **第三步：將數據傳給 ChatGPT 處理**
