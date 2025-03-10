@@ -11,6 +11,7 @@ from linebot.v3.messaging import Configuration, ApiClient, MessagingApi, ReplyMe
 from linebot.v3.webhook import WebhookHandler
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
 from linebot.v3.messaging.models import TextMessage
+import re
 
 instruction_text = """
 🍀瑰貝鈺AI建材小幫手服務指南☘️
@@ -280,83 +281,6 @@ def callback():
         return "Error", 400
 
     return "OK", 200
-
-@handler.add(MessageEvent, message=TextMessageContent)
-def handle_message(event):
-    """📩 處理使用者傳送的訊息"""
-    user_id = event.source.user_id  
-
-    # ✅ **檢查使用者權限**
-    if not check_user_permission(user_id):
-        reply_text = "❌ 您沒有查詢權限，請聯絡管理員開通權限。"
-    
-    else:
-        user_message = " ".join(event.message.text.strip().split())
-
-        # ✅ **「熱門主推」與「技術資訊」的快捷連結**
-        if user_message == "熱門主推":
-            hot_sheet_url = os.getenv("HOT_SHEET_URL", "⚠️ 未設定熱門主推連結")
-            reply_text = f"📌 **熱門主推建材資訊**\n請點擊以下連結查看：\n{hot_sheet_url}"
-        
-        elif user_message == "技術資訊":
-            tech_sheet_url = os.getenv("TECH_SHEET_URL", "⚠️ 未設定技術資訊連結")
-            reply_text = f"🔧 **技術資訊總覽**\n請點擊以下連結查看：\n{tech_sheet_url}"
-
-        else:
-            # ✅ **解析品牌與型號**
-            words = user_message.split()
-
-            if len(words) == 2:
-                # **格式 1：「品牌 型號」**
-                brand, model = words[0], words[1]
-
-            elif len(words) == 4 and words[0] == "品牌" and words[2] == "型號":
-                # **格式 2：「品牌 富美家 型號 8574NM」**
-                brand, model = words[1], words[3]
-
-            else:
-                reply_text = "⚠️ 請提供完整品牌與型號，例如：\n『品牌 富美家 型號 8574NM』\n或『富美家 8574NM』"
-                line_bot_api.reply_message(
-                    ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=reply_text)])
-                )
-                return  # ⛔ **輸入格式錯誤，直接返回**
-
-            print(f"🔍 解析輸入：品牌 = {brand}, 型號 = {model}")
-
-            # ✅ **檢查品牌是否存在於 BRAND_SHEETS**
-            matched_brand = fuzzy_match_brand(brand)
-            if not matched_brand:
-                reply_text = f"⚠️ 找不到品牌 **{brand}**，請確認品牌名稱是否正確。"
-            else:
-                # ✅ **「富美家」的特殊處理：使用「總表 → 子表」查詢**
-                if matched_brand == "富美家":
-                    subsheet_key = find_model_in_main_sheet(model)
-
-                    if subsheet_key and subsheet_key in SUBSHEET_IDS:
-                        sheet_data = get_sheets_data_from_subsheet(subsheet_key, model)
-
-                        if sheet_data:
-                            formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data.items())
-                            reply_text = ask_chatgpt(user_message, formatted_text)
-                        else:
-                            reply_text = f"⚠️ 找不到 **{matched_brand} {model}** 的詳細資料，請確認型號是否正確。"
-                    else:
-                        reply_text = f"⚠️ 找不到 **{matched_brand} {model}**，請確認型號是否正確。"
-
-                else:
-                    # ✅ **處理其他品牌（不需要查找子表）**
-                    sheet_data = get_sheets_data(matched_brand)
-
-                    if sheet_data and model in sheet_data:
-                        formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data[model].items())
-                        reply_text = ask_chatgpt(user_message, formatted_text)
-                    else:
-                        reply_text = f"⚠️ 找不到 **{matched_brand} {model}**，請確認型號是否正確。"
-
-    # ✅ **回應使用者**
-    line_bot_api.reply_message(
-        ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=reply_text)])
-    )
     
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
