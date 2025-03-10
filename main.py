@@ -353,6 +353,7 @@ def handle_message(event):
 
                 else:
                     # ✅ **處理其他品牌（不需要查找子表）**
+                    print(f"🔍 進入查詢品牌 {matched_brand}，型號 {model}")
                     sheet_data = get_sheets_data(matched_brand)
 
                     if sheet_data and model in sheet_data:
@@ -360,6 +361,15 @@ def handle_message(event):
                         reply_text = ask_chatgpt(user_message, formatted_text)
                     else:
                         reply_text = f"⚠️ 找不到 **{matched_brand} {model}**，請確認型號是否正確。"
+
+    # ✅ **統一處理所有品牌**
+if sheet_data and model in sheet_data:
+    print(f"✅ 成功找到型號 {model} 在 {matched_brand} 中！")
+    formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data[model].items())
+    reply_text = ask_chatgpt(user_message, formatted_text)
+else:
+    print(f"⚠️ 找不到 **{matched_brand} {model}**")
+    reply_text = f"⚠️ 找不到 **{matched_brand} {model}**，請確認型號是否正確。"
 
     # ✅ **回應使用者**
     line_bot_api.reply_message(
