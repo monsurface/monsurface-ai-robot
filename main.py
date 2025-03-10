@@ -47,7 +47,7 @@ BRAND_SHEETS = {
     "華槶線板": os.getenv("SPREADSHEET_ID_I"),
     "魔拉頓 Melatone": os.getenv("SPREADSHEET_ID_J"),
     "利明礦石軟片": os.getenv("SPREADSHEET_ID_K"),
-    "科友-KD": os.getenv("SPREADSHEET_ID_L"),
+    "科定-KD": os.getenv("SPREADSHEET_ID_L"),
 }
 
 # ✅ 「富美家」品牌有額外的子表
