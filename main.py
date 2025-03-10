@@ -209,7 +209,7 @@ def fuzzy_match_brand(user_input):
     return None
 
 def get_sheets_data(brand):
-    """📊 根據品牌讀取對應的 Google Sheets 數據"""
+    """📊 根據品牌讀取對應的 Google Sheets 數據，並確保型號格式統一"""
     sheet_id = BRAND_SHEETS.get(brand)
     if not sheet_id:
         print(f"❌ 找不到品牌 {brand} 對應的 Google Sheets ID")
@@ -220,16 +220,26 @@ def get_sheets_data(brand):
         all_data = {}
 
         for sheet in spreadsheet.worksheets():
-            raw_data = sheet.get_all_records(expected_headers=[])
-            formatted_data = {str(row.get("型號", "")).strip(): row for row in raw_data if isinstance(row, dict)}
+            raw_data = sheet.get_all_records(expected_headers=[])  # 讀取分頁資料
 
-            all_data.update(formatted_data)  # ✅ **確保所有型號都存進 all_data**
+            # ✅ **確保型號統一清理格式**
+            formatted_data = {
+                str(row.get("型號", "")).strip(): {k.strip(): str(v).strip() for k, v in row.items()}
+                for row in raw_data
+                if isinstance(row, dict) and "型號" in row
+            }
+
+            if formatted_data:
+                all_data[sheet.title] = formatted_data  # ✅ **按分頁名稱儲存**
+                print(f"📄 讀取 {brand} 的分頁 [{sheet.title}]，共 {len(formatted_data)} 筆型號")
 
         if not all_data:
             print(f"⚠️ {brand} 的 Google Sheets 內沒有任何數據！")
         else:
-            print(f"✅ {brand} 數據讀取成功，共 {len(all_data)} 筆型號")
-            print(f"📌 {brand} 內的可用型號（前 10 筆）：{list(all_data.keys())[:10]}")
+            # **列出所有可用型號（前 10 筆）**
+            all_models = [model for sheet in all_data.values() for model in sheet.keys()]
+            print(f"✅ {brand} 數據讀取成功，共 {len(all_models)} 筆型號")
+            print(f"📌 {brand} 內的可用型號（前 10 筆）：{all_models[:10]}")
 
         return all_data if all_data else None
 
