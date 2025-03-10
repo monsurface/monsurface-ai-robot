@@ -224,7 +224,7 @@ def fuzzy_match_brand(user_input):
     return None
 
 def get_sheets_data(brand):
-    """📊 根據品牌讀取對應的 Google Sheets 數據（型號大小寫不敏感，確保格式一致）"""
+    """📊 根據品牌讀取對應的 Google Sheets 數據"""
     sheet_id = BRAND_SHEETS.get(brand)
     if not sheet_id:
         print(f"❌ 找不到品牌 {brand} 對應的 Google Sheets ID")
@@ -237,12 +237,10 @@ def get_sheets_data(brand):
         for sheet in spreadsheet.worksheets():
             raw_data = sheet.get_all_records(expected_headers=[])
 
-            # ✅ **確保型號與所有值格式一致**
+            # ✅ **確保型號 Key 統一轉成字串，去除前後空格 & 確保數字型號不會變成錯誤格式**
             formatted_data = {
-                str(row.get("型號", "")).strip().lower():  # 讓型號小寫化，查詢不受大小寫影響
-                {str(k).strip(): str(v).strip() for k, v in row.items()}  # 所有欄位名稱與值都 `strip()`
-                for row in raw_data
-                if isinstance(row, dict) and row.get("型號")  # 確保 row 是字典且有 "型號" 欄位
+                str(row.get("型號", "")).strip().lower(): {str(k).strip(): str(v).strip() for k, v in row.items()}
+                for row in raw_data if isinstance(row, dict) and "型號" in row
             }
 
             all_data.update(formatted_data)  # ✅ **確保所有型號都存進 all_data**
