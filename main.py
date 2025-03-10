@@ -319,7 +319,7 @@ def handle_message(event):
     # ✅ **檢查使用者權限**
     if not check_user_permission(user_id):
         reply_text = "❌ 您沒有查詢權限，請聯絡管理員開通權限。"
-
+    
     else:
         user_message = " ".join(event.message.text.strip().split())
 
@@ -327,7 +327,7 @@ def handle_message(event):
         if user_message == "熱門主推":
             hot_sheet_url = os.getenv("HOT_SHEET_URL", "⚠️ 未設定熱門主推連結")
             reply_text = f"📌 **熱門主推建材資訊**\n請點擊以下連結查看：\n{hot_sheet_url}"
-
+        
         elif user_message == "技術資訊":
             tech_sheet_url = os.getenv("TECH_SHEET_URL", "⚠️ 未設定技術資訊連結")
             reply_text = f"🔧 **技術資訊總覽**\n請點擊以下連結查看：\n{tech_sheet_url}"
@@ -345,71 +345,61 @@ def handle_message(event):
                 brand, model = words[1], words[3]
 
             else:
-                reply_text = instruction_text
+                reply_text = "⚠️ 請提供完整品牌與型號，例如：\n『品牌 富美家 型號 8574NM』\n或『富美家 8574NM』"
                 line_bot_api.reply_message(
                     ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=reply_text)])
                 )
                 return  # ⛔ **輸入格式錯誤，直接返回**
 
+            # ✅ **確保 `model` 轉為 `str` 並統一轉為小寫**
+            model = str(model).strip().lower()
+
             print(f"🔍 解析輸入：品牌 = {brand}, 型號 = {model}")
 
             # ✅ **檢查品牌是否存在於 BRAND_SHEETS**
             matched_brand = fuzzy_match_brand(brand)
-
             if not matched_brand:
-                reply_text = instruction_text
+                reply_text = f"⚠️ 找不到品牌 **{brand}**，請確認品牌名稱是否正確。"
             else:
-                print(f"✅ 成功匹配品牌：{matched_brand}")
-
-                # ✅ **「富美家」的特殊處理：使用「總表 → 子表」查詢**
+                # ✅ **處理 `富美家` 需要查找 `總表 -> 子表`**
                 if matched_brand == "富美家":
-                    print(f"🔍 進入『富美家』總表查詢，型號：{model}")
                     subsheet_key = find_model_in_main_sheet(model)
 
                     if subsheet_key and subsheet_key in SUBSHEET_IDS:
-                        print(f"✅ 找到子表：{subsheet_key}，開始查詢 {model}")
                         sheet_data = get_sheets_data_from_subsheet(subsheet_key, model)
 
                         if sheet_data:
                             formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data.items())
                             reply_text = ask_chatgpt(user_message, formatted_text)
                         else:
-                            reply_text = instruction_text
+                            reply_text = f"⚠️ 找不到 **{matched_brand} {model}** 的詳細資料，請確認型號是否正確。"
                     else:
-                        reply_text = instruction_text
+                        reply_text = f"⚠️ 找不到 **{matched_brand} {model}**，請確認型號是否正確。"
 
                 else:
                     # ✅ **處理其他品牌（不需要查找子表）**
                     print(f"🔍 進入查詢品牌 {matched_brand}，型號 {model}")
-
                     sheet_data = get_sheets_data(matched_brand)
 
-                    if not sheet_data:
-                        print(f"⚠️ 無法獲取 {matched_brand} 的數據，請檢查 Google Sheets 設定")
-                        reply_text = instruction_text
-                    else:
-                        print(f"✅ {matched_brand} 數據載入成功，共 {len(sheet_data)} 個分頁")
-                        found_model = False  # 用於檢查是否找到型號
-                        
-                    for sheet_name, models in sheet_data.items():
-                        model_lower = str(model).strip().lower()  # ✅ 確保查詢型號也轉為小寫字串，避免大小寫影響匹配
-                        models_dict = {str(k).strip().lower(): v for k, v in models.items()}  # ✅ 轉換所有 Key 確保比對正確
+                    if sheet_data:
+                        model_keys = [str(k).strip().lower() for k in sheet_data.keys()]  # 確保所有 `model_keys` 都轉小寫
+                        print(f"📌 {matched_brand} 內的可用型號（前 10 筆）：{model_keys[:10]}")
 
-                        if model_lower in models_dict:
-                            found_model = True
-                            formatted_text = "\n".join(f"{key}: {value}" for key, value in models_dict[model_lower].items())
+                        if model in model_keys:
+                            formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data[model].items())
                             reply_text = ask_chatgpt(user_message, formatted_text)
-                            print(f"✅ 在 {sheet_name} 找到型號 {model}")
-                            break  # ✅ 找到後立即結束迴圈
-        
-                        if not found_model:
+                            print(f"✅ 成功找到型號 {model}，回應使用者")
+                        else:
                             print(f"⚠️ {matched_brand} 內找不到型號 {model}")
-                            reply_text = instruction_text
+                            reply_text = f"⚠️ 找不到 **{matched_brand} {model}**，請確認型號是否正確。"
+                    else:
+                        reply_text = f"⚠️ 找不到品牌 **{matched_brand}** 的數據，請確認品牌名稱是否正確。"
 
     # ✅ **回應使用者**
     line_bot_api.reply_message(
         ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=reply_text)])
     )
+
 
 
 if __name__ == "__main__":
