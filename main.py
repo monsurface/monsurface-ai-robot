@@ -177,8 +177,9 @@ def get_sheets_data_from_subsheet(subsheet_key, model):
         # 讀取所有資料
         data = sheet.get_all_records()
 
+        print(f"🔍 正在 {subsheet_key} 中查找型號：{model}")
+
         for row in data:
-            # ✅ **確保比對時去除空格，避免匹配錯誤**
             sheet_model = str(row.get("型號", "")).strip()
             if sheet_model == model.strip():
                 print(f"✅ 在 {subsheet_key} 找到型號 {model}")
