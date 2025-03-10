@@ -305,27 +305,41 @@ def handle_message(event):
         else:
             # ✅ **解析品牌與型號**
             words = user_message.split()
-            if len(words) < 2:
-                reply_text = "⚠️ 請提供完整品牌與型號，例如：『富美家 8574NM』"
+
+            if len(words) == 2:
+                # **格式 1：「品牌 型號」**
+                brand, model = words[0], words[1]
+
+            elif len(words) == 4 and words[0] == "品牌" and words[2] == "型號":
+                # **格式 2：「品牌 富美家 型號 8574NM」**
+                brand, model = words[1], words[3]
+
             else:
-                brand, model = words[0], words[1]  # **確保 model 是型號，而不是品牌名稱**
-                print(f"🔍 解析輸入：品牌 = {brand}, 型號 = {model}")
+                reply_text = instruction_text
+                line_bot_api.reply_message(
+                    ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=reply_text)])
+                )
+                return  # ⛔ **輸入格式錯誤，直接返回**
 
-                # ✅ **第一步：在總表查找型號，獲取對應子表**
-                subsheet_key = find_model_in_main_sheet(model)
+            print(f"🔍 解析輸入：品牌 = {brand}, 型號 = {model}")
 
-                if subsheet_key and subsheet_key in SUBSHEET_IDS:
-                    # ✅ **第二步：讀取該子表的數據**
-                    sheet_data = get_sheets_data_from_subsheet(subsheet_key, model)  # **確保 model 是型號**
-                    print(f"📂 查詢子表：{subsheet_key}，型號：{model}")
+            # ✅ **第一步：在總表查找型號，獲取對應子表**
+            subsheet_key = find_model_in_main_sheet(model)
 
-                    if sheet_data:
-                        # ✅ **第三步：將數據傳給 ChatGPT 處理**
-                        formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data.items())
-                        reply_text = ask_chatgpt(user_message, formatted_text)
-                    else:
-                        reply_text = instruction_text
+            if subsheet_key and subsheet_key in SUBSHEET_IDS:
+                # ✅ **第二步：讀取該子表的數據**
+                sheet_data = get_sheets_data_from_subsheet(subsheet_key, model)  # **確保 model 是型號**
+                print(f"📂 查詢子表：{subsheet_key}，型號：{model}")
+
+                if sheet_data:
+                    # ✅ **第三步：將數據傳給 ChatGPT 處理**
+                    formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data.items())
+                    reply_text = ask_chatgpt(user_message, formatted_text)
+                else:
                     reply_text = instruction_text
+            else:
+                reply_text = instruction_text
+
     # ✅ **回應使用者**
     line_bot_api.reply_message(
         ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=reply_text)])
