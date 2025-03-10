@@ -391,16 +391,16 @@ def handle_message(event):
                         print(f"✅ {matched_brand} 數據載入成功，共 {len(sheet_data)} 個分頁")
                         found_model = False  # 用於檢查是否找到型號
                         
-    for sheet_name, models in sheet_data.items():
-    model_lower = str(model).strip().lower()  # ✅ 確保查詢型號也轉為小寫字串，避免大小寫影響匹配
-    models_dict = {str(k).strip().lower(): v for k, v in models.items()}  # ✅ 轉換所有 Key 確保比對正確
+                    for sheet_name, models in sheet_data.items():
+                        model_lower = str(model).strip().lower()  # ✅ 確保查詢型號也轉為小寫字串，避免大小寫影響匹配
+                        models_dict = {str(k).strip().lower(): v for k, v in models.items()}  # ✅ 轉換所有 Key 確保比對正確
 
-    if model_lower in models_dict:
-        found_model = True
-        formatted_text = "\n".join(f"{key}: {value}" for key, value in models_dict[model_lower].items())
-        reply_text = ask_chatgpt(user_message, formatted_text)
-        print(f"✅ 在 {sheet_name} 找到型號 {model}")
-        break  # ✅ 找到後立即結束迴圈
+                        if model_lower in models_dict:
+                            found_model = True
+                            formatted_text = "\n".join(f"{key}: {value}" for key, value in models_dict[model_lower].items())
+                            reply_text = ask_chatgpt(user_message, formatted_text)
+                            print(f"✅ 在 {sheet_name} 找到型號 {model}")
+                            break  # ✅ 找到後立即結束迴圈
         
                         if not found_model:
                             print(f"⚠️ {matched_brand} 內找不到型號 {model}")
