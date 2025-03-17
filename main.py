@@ -154,11 +154,19 @@ def find_model_in_main_sheet(model):
 
         data = sheet.get_all_records()  # 讀取所有數據
 
-        # ✅ **確保 `model` 轉為小寫**
+        # ✅ **確保 `model` 轉為字串並小寫**
         model = str(model).strip().lower()
 
         for row in data:
-            sheet_model = str(row.get("型號", "")).strip().lower()  # 轉換為小寫
+            # 🔹 **確保型號強制轉為字串，避免數字型號自動變更**
+            sheet_model = str(row.get("型號", "")).strip().lower()
+
+            # 🔹 **檢查是否型號在 Google Sheets 內已被轉換為數字**
+            if sheet_model.isdigit() and model.isdigit():
+                # 若 model 和 sheet_model 皆為數字型號，轉換為 `zfill(10)` 統一長度（可視需求調整）
+                model = model.zfill(10)
+                sheet_model = sheet_model.zfill(10)
+            
             subsheet_name = str(row.get("子表", "")).strip()  # 子表名稱不影響比對
 
             if model == sheet_model:  # **確保比對時不受空格和大小寫影響**
