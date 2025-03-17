@@ -204,15 +204,26 @@ def get_sheets_data_from_subsheet(subsheet_key, model):
         # 讀取所有資料
         data = sheet.get_all_records()
 
-        # ✅ **確保 `model` 轉為小寫**
+        # ✅ **確保 `model` 轉為字串、移除空格、小寫化**
         model = str(model).strip().lower()
 
         print(f"🔍 正在 {subsheet_key} 中查找型號：{model}")
 
         for row in data:
-            sheet_model = str(row.get("型號", "")).strip().lower()  # 轉換為小寫
+            # 🔹 **確保型號轉為字串，避免數字型號自動變更**
+            sheet_model = str(row.get("型號", "")).strip().lower()
 
-            if model == sheet_model:  # **確保比對時不受大小寫和空格影響**
+            # 🔹 **處理前導 0 被移除的情況**
+            if sheet_model.isdigit() and model.isdigit():
+                model_zfilled = model.zfill(10)  # 統一長度
+                sheet_model_zfilled = sheet_model.zfill(10)
+
+                if model_zfilled == sheet_model_zfilled:
+                    print(f"✅ 在 {subsheet_key} 找到型號 {model}（數字型號匹配成功）")
+                    return row  # 回傳該型號的所有詳細資訊
+            
+            # **標準比對**
+            if model == sheet_model:
                 print(f"✅ 在 {subsheet_key} 找到型號 {model}")
                 return row  # 回傳該型號的所有詳細資訊
 
