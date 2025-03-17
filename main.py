@@ -244,10 +244,10 @@ def get_sheets_data(brand):
         for sheet in spreadsheet.worksheets():
             raw_data = sheet.get_all_records(expected_headers=[])
 
-            # ✅ **確保型號 Key 統一轉成小寫字串，避免數字型號讀取後格式不一致**
+            # ✅ **確保型號 Key 統一轉成小寫字串，並保留前導 0**
             formatted_data = {
-                str(row.get("型號", "")).strip().lower(): {
-                    str(k).strip().lower(): str(v).strip() for k, v in row.items()
+                str(row.get("型號", "")).strip().lower().zfill(10): {  # 🔹 確保為字串，避免數字型號讀取錯誤
+                str(k).strip().lower(): str(v).strip() for k, v in row.items()
                 }
                 for row in raw_data if isinstance(row, dict) and "型號" in row
             }
