@@ -16,7 +16,6 @@ import re
 instruction_text = """
 🍀瑰貝鈺AI建材小幫手服務指南☘️
 
-🔹 **請依照以下方式查詢建材資訊：**
 1️⃣ 查詢建材資訊：
 請輸入品牌與型號，例如：「品牌 ABC 型號 123」。
 
@@ -32,7 +31,7 @@ Formica富美家、Lavi樂維、Donacai多娜彩、萊適寶、松耐特、AICA�
 4️⃣ 瑰貝鈺傳送門：
 https://portaly.cc/Monsurface 各品牌綜合資訊。
 
-📌 **請用以上方式輸入，以獲取精準資訊！**
+📌 請用以上方式輸入，以獲取精準資訊！
 """
 
 app = Flask(__name__)
