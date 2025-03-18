@@ -29,7 +29,8 @@ Formica富美家、Lavi樂維、Donacai多娜彩、萊適寶、松耐特、AICA�
 請輸入「技術資訊」，獲取所有建材品牌的技術資料連結。
 
 4️⃣ 瑰貝鈺傳送門：
-https://portaly.cc/Monsurface 各品牌綜合資訊。
+https://portaly.cc/Monsurface
+各品牌綜合資訊。
 
 📌 請用以上方式輸入，以獲取精準資訊！
 """
