@@ -36,13 +36,13 @@ https://portaly.cc/Monsurface/pages/hot_catalog
 請輸入「技術資訊」
 或利用以下連結
 https://portaly.cc/Monsurface/pages/technical
-獲取建材品牌的技術資料。
+查看建材品牌的技術資料。
 
 4️⃣ 瑰貝鈺傳送門：
+利用以下連結
 https://portaly.cc/Monsurface
-各品牌綜合資訊。
+查看各品牌綜合資訊。
 
-📌 請用以上方式輸入，以獲取精準資訊！
 """
 
 app = Flask(__name__)
