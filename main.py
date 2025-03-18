@@ -20,7 +20,8 @@ instruction_text = """
 請輸入品牌與型號，例如：「品牌 ABC 型號 123」。
 
 可查詢品牌：
-Formica富美家、Lavi樂維、Donacai多娜彩、萊適寶、松耐特、AICA愛卡、Melatone摩拉頓、科彰、吉祥、華旗、華槶、KEDING科定
+Formica富美家、Lavi樂維、Donacai多娜彩、萊適寶、松耐特、
+AICA愛卡、Melatone摩拉頓、科彰、吉祥、華旗、華槶、KEDING科定
 
 2️⃣ 獲取熱門建材推薦：
 請輸入「熱門主推」，即可查看最新主打建材資訊。
