@@ -367,7 +367,7 @@ def handle_message(event):
         
         elif user_message == "技術資訊":
             tech_sheet_url = os.getenv("TECH_SHEET_URL", "⚠️ 未設定技術資訊連結")
-            reply_text = f"🔧 **技術資訊總覽**\n請點擊以下連結查看：\n{https://portaly.cc/Monsurface/pages/technical}"
+            reply_text = f"🔧 **技術資訊總覽**\n請點擊以下連結查看：\n{TECH_SHEET_URL}"
 
         else:
             # ✅ **解析品牌與型號**
