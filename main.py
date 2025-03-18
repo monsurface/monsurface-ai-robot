@@ -24,10 +24,14 @@ Formica富美家、Lavi樂維、Donacai多娜彩、萊適寶、松耐特、
 AICA愛卡、Melatone摩拉頓、科彰、吉祥、華旗、華槶、KEDING科定
 
 2️⃣ 獲取熱門建材推薦：
-請輸入「熱門主推」，即可查看最新主打建材資訊。
+請輸入「熱門主推」，或利用以下連結
+https://portaly.cc/Monsurface/pages/hot_catalog
+即可查看最新主打建材資訊。
 
 3️⃣ 查詢技術資訊：
-請輸入「技術資訊」，獲取所有建材品牌的技術資料連結。
+請輸入「技術資訊」，或利用以下連結
+https://portaly.cc/Monsurface/pages/technical
+獲取所有建材品牌的技術資料。
 
 4️⃣ 瑰貝鈺傳送門：
 https://portaly.cc/Monsurface
