@@ -435,22 +435,22 @@ def handle_message(event):
                         print(f"📌 {matched_brand} 內的可用型號（前 10 筆）：{model_keys[:10]}")
                         print(f"📌 {matched_brand} 內的可用型號（去除前導 0 後，前 10 筆）：{model_keys_no_leading_zeros[:10]}")
                         
-                       # 🔹 **嘗試多種方式比對**
-                       if model in model_keys:
-                           formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data[model].items())
-                           reply_text = ask_chatgpt(user_message, formatted_text)
-                           print(f"✅ 成功找到型號 {model}，回應使用者")
+                        # 🔹 **嘗試多種方式比對**
+                        if model in model_keys:
+                            formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data[model].items())
+                            reply_text = ask_chatgpt(user_message, formatted_text)
+                            print(f"✅ 成功找到型號 {model}，回應使用者")
 
-                       elif model.lstrip("0") in model_keys_no_leading_zeros:
-                           index = model_keys_no_leading_zeros.index(model.lstrip("0"))  # 找到對應索引
-                           correct_model = model_keys[index]  # 取回原本的 key
-                           formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data[correct_model].items())
-                           reply_text = ask_chatgpt(user_message, formatted_text)
-                           print(f"✅ 成功找到型號 {model}（去除前導 0 後匹配成功），回應使用者")
+                        elif model.lstrip("0") in model_keys_no_leading_zeros:
+                            index = model_keys_no_leading_zeros.index(model.lstrip("0"))  # 找到對應索引
+                            correct_model = model_keys[index]  # 取回原本的 key
+                            formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data[correct_model].items())
+                            reply_text = ask_chatgpt(user_message, formatted_text)
+                            print(f"✅ 成功找到型號 {model}（去除前導 0 後匹配成功），回應使用者")
 
-                       else:
-                           print(f"⚠️ {matched_brand} 內找不到型號 {model}")
-                           reply_text = instruction_text
+                        else:
+                            print(f"⚠️ {matched_brand} 內找不到型號 {model}")
+                            reply_text = instruction_text
                     else:
                         reply_text = instruction_text
     # ✅ **回應使用者**
