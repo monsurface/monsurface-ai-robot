@@ -431,30 +431,26 @@ def handle_message(event):
 
                     if sheet_data:
                         model_keys = [str(k).strip().lower() for k in sheet_data.keys()]  # 確保所有 `model_keys` 都轉小寫
+                        model_keys_no_leading_zeros = [k.lstrip("0") for k in model_keys]  # **去除所有型號的前導 0**
                         print(f"📌 {matched_brand} 內的可用型號（前 10 筆）：{model_keys[:10]}")
+                        print(f"📌 {matched_brand} 內的可用型號（去除前導 0 後，前 10 筆）：{model_keys_no_leading_zeros[:10]}")
+                        
+                       # 🔹 **嘗試多種方式比對**
+                       if model in model_keys:
+                           formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data[model].items())
+                           reply_text = ask_chatgpt(user_message, formatted_text)
+                           print(f"✅ 成功找到型號 {model}，回應使用者")
 
-                        # 🔹 **解決數字型號的前導 0 問題**
-                        if model.isdigit():
-                            model_zfilled = model.zfill(10)  # 統一長度
-                            model_keys_zfilled = [k.zfill(10) if k.isdigit() else k for k in model_keys]
-                            
-                            if model_zfilled in model_keys_zfilled:
-                                index = model_keys_zfilled.index(model_zfilled)  # 找到對應索引
-                                correct_model = model_keys[index]  # 取回原本的 key
-                                formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data[correct_model].items())
-                                reply_text = ask_chatgpt(user_message, formatted_text)
-                                print(f"✅ 成功找到型號 {model}（數字型號匹配成功），回應使用者")
-                            else:
-                                print(f"⚠️ {matched_brand} 內找不到型號 {model}")
-                                reply_text = instruction_text
+                       elif model.lstrip("0") in model_keys_no_leading_zeros:
+                           index = model_keys_no_leading_zeros.index(model.lstrip("0"))  # 找到對應索引
+                           correct_model = model_keys[index]  # 取回原本的 key
+                           formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data[correct_model].items())
+                           reply_text = ask_chatgpt(user_message, formatted_text)
+                           print(f"✅ 成功找到型號 {model}（去除前導 0 後匹配成功），回應使用者")
 
-                        elif model in model_keys:
-                            formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data[model].items())
-                            reply_text = ask_chatgpt(user_message, formatted_text)
-                            print(f"✅ 成功找到型號 {model}，回應使用者")
-                        else:
-                            print(f"⚠️ {matched_brand} 內找不到型號 {model}")
-                            reply_text = instruction_text
+                       else:
+                           print(f"⚠️ {matched_brand} 內找不到型號 {model}")
+                           reply_text = instruction_text
                     else:
                         reply_text = instruction_text
     # ✅ **回應使用者**
