@@ -85,7 +85,7 @@ SUBSHEET_IDS = {
 BRAND_ALIASES = {
     "富美家": ["富美家", "Formica"],
     "愛卡AICA-愛克板": ["愛卡", "AICA", "愛克板"],
-    "鉅莊-樂維LAVI": ["鉅莊", "樂維", "LAVI"],
+    "鉅莊-樂維LAVI": ["鉅莊", "樂維", "LAVI", "Lavi", "lavi", "多娜彩", "Donacai" ],
     "松華-松耐特及系列品牌": ["松華", "松耐特", "萊適寶", "松華板"],
     "魔拉頓 Melatone": ["魔拉頓", "Melatone"],
 }
