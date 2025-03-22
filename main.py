@@ -1,4 +1,5 @@
 
+
 from flask import Flask, request
 import gspread
 import requests
@@ -363,53 +364,60 @@ def callback():
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
     """📩 處理使用者傳送的訊息"""
-    user_id = event.source.user_id
+    user_id = event.source.user_id  
 
-    # ✅ 檢查使用者權限
+    # ✅ **檢查使用者權限**
     if not check_user_permission(user_id):
         reply_text = "❌ 您沒有查詢權限，請聯絡管理員開通權限。"
-
+    
     else:
         user_message = " ".join(event.message.text.strip().split())
 
-        # ✅ 快捷指令：熱門主推 / 技術資訊
+        # ✅ **「熱門主推」與「技術資訊」的快捷連結**
         if user_message == "熱門主推":
             hot_sheet_url = os.getenv("HOT_SHEET_URL", "⚠️ 未設定熱門主推連結")
             reply_text = f"📌 **熱門主推建材資訊**\n請點擊以下連結查看：\n{hot_sheet_url}"
-
+        
         elif user_message == "技術資訊":
             tech_sheet_url = os.getenv("TECH_SHEET_URL", "⚠️ 未設定技術資訊連結")
             reply_text = f"🔧 **技術資訊總覽**\n請點擊以下連結查看：\n{tech_sheet_url}"
 
         else:
-            # ✅ 解析品牌與型號
+            # ✅ **解析品牌與型號**
             words = user_message.split()
 
             if len(words) == 2:
+                # **格式 1：「品牌 型號」**
                 brand, model = words[0], words[1]
+
             elif len(words) == 4 and words[0] == "品牌" and words[2] == "型號":
+                # **格式 2：「品牌 富美家 型號 8574NM」**
                 brand, model = words[1], words[3]
+
             else:
                 reply_text = instruction_text
                 line_bot_api.reply_message(
-                    ReplyMessageRequest(
-                        reply_token=event.reply_token,
-                        messages=[TextMessage(text=reply_text)]
-                    )
+                    ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=reply_text)])
                 )
-                return
+                return  # ⛔ **輸入格式錯誤，直接返回**
 
+            # ✅ **確保 `model` 轉為 `str` 並統一轉為小寫**
             model = str(model).strip().lower()
+
             print(f"🔍 解析輸入：品牌 = {brand}, 型號 = {model}")
 
+            # ✅ **檢查品牌是否存在於 BRAND_SHEETS**
             matched_brand = fuzzy_match_brand(brand)
             if not matched_brand:
                 reply_text = instruction_text
             else:
+                # ✅ **處理 `富美家` 需要查找 `總表 -> 子表`**
                 if matched_brand == "富美家":
                     subsheet_key = find_model_in_main_sheet(model)
+
                     if subsheet_key and subsheet_key in SUBSHEET_IDS:
                         sheet_data = get_sheets_data_from_subsheet(subsheet_key, model)
+
                         if sheet_data:
                             formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data.items())
                             reply_text = ask_chatgpt(user_message, formatted_text)
@@ -417,42 +425,41 @@ def handle_message(event):
                             reply_text = instruction_text
                     else:
                         reply_text = instruction_text
+
                 else:
+                    # ✅ **處理其他品牌（不需要查找子表）**
                     print(f"🔍 進入查詢品牌 {matched_brand}，型號 {model}")
                     sheet_data = get_sheets_data(matched_brand)
+
                     if sheet_data:
-                        model_keys = [str(k).strip().lower() for k in sheet_data.keys()]
-                        model_keys = [k for k in model_keys if k and k.strip("0")]
-                        model_keys_no_leading_zeros = [k.lstrip("0") for k in model_keys]
-
-                        print(f"📌 {matched_brand} 型號列表（前 10 筆）:")
-                        for m in model_keys[:10]:
-                            print(f"- {m}")
-
+                        model_keys = [str(k).strip().lower() for k in sheet_data.keys()]  # 確保所有 `model_keys` 都轉小寫
+                        model_keys_no_leading_zeros = [k.lstrip("0") for k in model_keys]  # **去除所有型號的前導 0**
+                        print(f"📌 {matched_brand} 內的可用型號（前 10 筆）：{model_keys[:10]}")
+                        print(f"📌 {matched_brand} 內的可用型號（去除前導 0 後，前 10 筆）：{model_keys_no_leading_zeros[:10]}")
+                        
+                        # 🔹 **嘗試多種方式比對**
                         if model in model_keys:
                             formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data[model].items())
                             reply_text = ask_chatgpt(user_message, formatted_text)
                             print(f"✅ 成功找到型號 {model}，回應使用者")
 
                         elif model.lstrip("0") in model_keys_no_leading_zeros:
-                            index = model_keys_no_leading_zeros.index(model.lstrip("0"))
-                            correct_model = model_keys[index]
+                            index = model_keys_no_leading_zeros.index(model.lstrip("0"))  # 找到對應索引
+                            correct_model = model_keys[index]  # 取回原本的 key
                             formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data[correct_model].items())
                             reply_text = ask_chatgpt(user_message, formatted_text)
-                            print(f"✅ 成功找到型號 {model}（去除前導 0 後匹配成功）")
+                            print(f"✅ 成功找到型號 {model}（去除前導 0 後匹配成功），回應使用者")
+
                         else:
-                            print(f"⚠️ 在品牌「{matched_brand}」中找不到型號「{model}」\n📌 請確認輸入是否正確，或聯絡管理員補充資料。")
+                            print(f"⚠️ {matched_brand} 內找不到型號 {model}")
                             reply_text = instruction_text
                     else:
                         reply_text = instruction_text
-
-    # ✅ 回應使用者
+    # ✅ **回應使用者**
     line_bot_api.reply_message(
-        ReplyMessageRequest(
-            reply_token=event.reply_token,
-            messages=[TextMessage(text=reply_text)]
-        )
+        ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=reply_text)])
     )
+
 
 
 if __name__ == "__main__":
