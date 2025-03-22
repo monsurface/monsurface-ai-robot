@@ -422,6 +422,7 @@ def handle_message(event):
                     sheet_data = get_sheets_data(matched_brand)
                     if sheet_data:
                         model_keys = [str(k).strip().lower() for k in sheet_data.keys()]
+                        model_keys = [k for k in model_keys if k and k.strip("0")]
                         model_keys_no_leading_zeros = [k.lstrip("0") for k in model_keys]
 
                         print(f"📌 {matched_brand} 型號列表（前 10 筆）:")
@@ -440,7 +441,7 @@ def handle_message(event):
                             reply_text = ask_chatgpt(user_message, formatted_text)
                             print(f"✅ 成功找到型號 {model}（去除前導 0 後匹配成功）")
                         else:
-                            print(f"⚠️ {matched_brand} 中找不到型號 {model}")
+                            print(f"⚠️ 在品牌「{matched_brand}」中找不到型號「{model}」\n📌 請確認輸入是否正確，或聯絡管理員補充資料。")
                             reply_text = instruction_text
                     else:
                         reply_text = instruction_text
