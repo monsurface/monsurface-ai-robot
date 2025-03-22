@@ -363,7 +363,7 @@ def callback():
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
     """📩 處理使用者傳送的訊息"""
-    user_id = event.source.user_id  
+    user_id = event.source.user_id
 
     # ✅ 檢查使用者權限
     if not check_user_permission(user_id):
@@ -397,7 +397,7 @@ def handle_message(event):
                         messages=[TextMessage(text=reply_text)]
                     )
                 )
-                return  # ⛔ 格式錯誤就結束處理
+                return
 
             model = str(model).strip().lower()
             print(f"🔍 解析輸入：品牌 = {brand}, 型號 = {model}")
@@ -424,8 +424,9 @@ def handle_message(event):
                         model_keys = [str(k).strip().lower() for k in sheet_data.keys()]
                         model_keys_no_leading_zeros = [k.lstrip("0") for k in model_keys]
 
-                        print(f"📌 {matched_brand} 內的可用型號（前 10 筆）：{model_keys[:10]}")
-                        print(f"📌 {matched_brand} 內的可用型號（去除前導 0 後，前 10 筆）：{model_keys_no_leading_zeros[:10]}")
+                        print(f"📌 {matched_brand} 型號列表（前 10 筆）:")
+                        for m in model_keys[:10]:
+                            print(f"- {m}")
 
                         if model in model_keys:
                             formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data[model].items())
@@ -437,9 +438,9 @@ def handle_message(event):
                             correct_model = model_keys[index]
                             formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data[correct_model].items())
                             reply_text = ask_chatgpt(user_message, formatted_text)
-                            print(f"✅ 成功找到型號 {model}（去除前導 0 後匹配成功），回應使用者")
+                            print(f"✅ 成功找到型號 {model}（去除前導 0 後匹配成功）")
                         else:
-                            print(f"⚠️ {matched_brand} 內找不到型號 {model}")
+                            print(f"⚠️ {matched_brand} 中找不到型號 {model}")
                             reply_text = instruction_text
                     else:
                         reply_text = instruction_text
