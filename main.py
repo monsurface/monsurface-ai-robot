@@ -430,35 +430,49 @@ def handle_message(event):
                     sheet_data = get_sheets_data(matched_brand)
 
                     if sheet_data:
-                        model_keys = [str(k).strip().lower() for k in sheet_data.keys()]  # 確保所有 `model_keys` 都轉小寫
-                        model_keys_no_leading_zeros = [k.lstrip("0") for k in model_keys]  # **去除所有型號的前導 0**
+                        model_keys = [str(k).strip().lower() for k in sheet_data.keys()]  # 確保所有 model_keys 都是小寫字串
+                        model_keys_no_leading_zeros = [k.lstrip("0") for k in model_keys]  # 去除前導 0
                         print(f"📌 {matched_brand} 內的可用型號（前 10 筆）：{model_keys[:10]}")
                         print(f"📌 {matched_brand} 內的可用型號（去除前導 0 後，前 10 筆）：{model_keys_no_leading_zeros[:10]}")
-                        
-                        # 🔹 **嘗試多種方式比對**
+
+                        # ✅ 1️⃣ 完全符合（包含前導 0）
                         if model in model_keys:
                             formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data[model].items())
                             reply_text = ask_chatgpt(user_message, formatted_text)
                             print(f"✅ 成功找到型號 {model}，回應使用者")
 
+                        # ✅ 2️⃣ 去除前導 0 後匹配
                         elif model.lstrip("0") in model_keys_no_leading_zeros:
-                            index = model_keys_no_leading_zeros.index(model.lstrip("0"))  # 找到對應索引
-                            correct_model = model_keys[index]  # 取回原本的 key
+                            index = model_keys_no_leading_zeros.index(model.lstrip("0"))
+                            correct_model = model_keys[index]
                             formatted_text = "\n".join(f"{key}: {value}" for key, value in sheet_data[correct_model].items())
                             reply_text = ask_chatgpt(user_message, formatted_text)
                             print(f"✅ 成功找到型號 {model}（去除前導 0 後匹配成功），回應使用者")
 
+                        # ✅ 3️⃣ 模糊包含比對（儲存格內含多個型號）
                         else:
-                            print(f"⚠️ {matched_brand} 內找不到型號 {model}")
+                            found = False
+                            for model_key, row in sheet_data.items():
+                                if model in model_key.lower():  # 比對時轉小寫處理
+                                    formatted_text = "\n".join(f"{key}: {value}" for key, value in row.items())
+                                    reply_text = ask_chatgpt(user_message, formatted_text)
+                                    print(f"✅ 成功找到包含型號 {model} 的資料（來自：{model_key}）")
+                                    found = True
+                                    break
+
+                            if not found:
+                            print(f"⚠️ {matched_brand} 內找不到任何與 {model} 相關的型號")
                             reply_text = instruction_text
+
                     else:
                         reply_text = instruction_text
+
+else:
+    reply_text = instruction_text
     # ✅ **回應使用者**
     line_bot_api.reply_message(
         ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=reply_text)])
     )
-
-
 
 if __name__ == "__main__":
     from waitress import serve
