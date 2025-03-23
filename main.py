@@ -61,6 +61,7 @@ def search_materials_from_db(keyword: str, limit: int = 5):
     try:
         conn = sqlite3.connect("materials.db")
         cur = conn.cursor()
+        print(f"✅ 已成功開啟資料庫，正在搜尋關鍵字：{keyword}")  # << 加這行
         cur.execute("""
             SELECT * FROM materials
             WHERE 系列 LIKE ? OR 款式 LIKE ? OR 型號 LIKE ? OR 花色名稱 LIKE ?
