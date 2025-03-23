@@ -3,9 +3,8 @@ gspread
 google-auth
 google-auth-oauthlib
 google-auth-httplib2
-openai
+openai>=1.0.0
 requests
-line-bot-sdk
+line-bot-sdk==2.4.1
 waitress
-rapidfuzz
 pytz
