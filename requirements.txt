@@ -9,3 +9,4 @@ line-bot-sdk
 waitress
 rapidfuzz
 pytz
+aiohttp<3.9.0
