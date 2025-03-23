@@ -1,17 +1,18 @@
-from flask import Flask, request
-from linebot.v3.webhook import WebhookHandler
-from linebot.v3.webhooks import MessageEvent, TextMessageContent
-from linebot.v3.messaging import Configuration, ApiClient, MessagingApi, ReplyMessageRequest
-from linebot.v3.messaging.models import TextMessage
-import openai, sqlite3, os, gspread, requests
-from google.oauth2.service_account import Credentials
+import os
+import openai
+import sqlite3
+from flask import Flask, request, abort
 from datetime import datetime
+import gspread
+import requests
 import pytz
+from google.oauth2.service_account import Credentials
+from linebot import LineBotApi, WebhookHandler
+from linebot.exceptions import InvalidSignatureError
+from linebot.models import MessageEvent, TextMessage, TextSendMessage
 
 app = Flask(__name__)
-configuration = Configuration(access_token=os.getenv("LINE_CHANNEL_ACCESS_TOKEN"))
-api_client = ApiClient(configuration)
-line_bot_api = MessagingApi(api_client)
+line_bot_api = LineBotApi(os.getenv("LINE_CHANNEL_ACCESS_TOKEN"))
 handler = WebhookHandler(os.getenv("LINE_CHANNEL_SECRET"))
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 DROPBOX_URL = os.getenv("DROPBOX_URL")
@@ -33,10 +34,8 @@ def download_credentials():
             f.write(r.content)
 download_credentials()
 
-credentials = Credentials.from_service_account_file(
-    LOCAL_FILE_PATH,
-    scopes=["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-)
+credentials = Credentials.from_service_account_file(LOCAL_FILE_PATH, scopes=[
+    "https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"])
 client = gspread.authorize(credentials)
 
 def check_user_permission(user_id):
@@ -55,7 +54,7 @@ def check_user_permission(user_id):
         sheet.append_row([user_id, "否", 0, datetime.now(pytz.timezone("Asia/Taipei")).strftime("%Y-%m-%d %H:%M:%S")])
         return False
     except Exception as e:
-        print(f"❌ 權限檢查錯誤：{e}")
+        print(f"❌ 權限錯誤: {e}")
         return False
 
 def search_materials_from_db(keyword: str, limit: int = 5):
@@ -104,31 +103,28 @@ def callback():
     body = request.get_data(as_text=True)
     try:
         handler.handle(body, signature)
-    except Exception as e:
-        print(f"❌ Webhook Error: {e}")
-        return "Error", 400
-    return "OK", 200
+    except InvalidSignatureError:
+        abort(400)
+    return "OK"
 
-@handler.add(MessageEvent, message=TextMessageContent)
+@handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_id = event.source.user_id
     msg = event.message.text.strip()
 
     if not check_user_permission(user_id):
-        reply_text = "❌ 您沒有查詢權限，請聯絡管理員"
+        reply = "❌ 您沒有查詢權限，請聯絡管理員"
     elif msg == "熱門主推":
-        reply_text = "📌 熱門建材資訊：https://portaly.cc/Monsurface/pages/hot_catalog"
+        reply = "📌 熱門建材資訊：https://portaly.cc/Monsurface/pages/hot_catalog"
     elif msg == "技術資訊":
-        reply_text = "🔧 技術資訊：https://portaly.cc/Monsurface/pages/technical"
+        reply = "🔧 技術資訊：https://portaly.cc/Monsurface/pages/technical"
     elif msg == "瑰貝鈺傳送門":
-        reply_text = "🚪 傳送門：https://portaly.cc/Monsurface"
+        reply = "🚪 傳送門：https://portaly.cc/Monsurface"
     else:
         result = search_materials_from_db(msg)
-        reply_text = ask_chatgpt(msg, result)
+        reply = ask_chatgpt(msg, result)
 
-    line_bot_api.reply_message(ReplyMessageRequest(reply_token=event.reply_token, messages=[TextMessage(text=reply_text)]))
+    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
 
 if __name__ == "__main__":
-    from waitress import serve
-    print("🚀 LINE Bot 正在啟動...")
-    serve(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
