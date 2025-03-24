@@ -11,3 +11,4 @@ pytz
 fastapi
 uvicorn
 mangum
+rapidfuzz
