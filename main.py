@@ -40,7 +40,7 @@ https://portaly.cc/Monsurface/pages/hot_catalog
 https://portaly.cc/Monsurface/pages/technical
 查看建材品牌的技術資料。
 
-4⃣f3f0 瑠貝鏱傳送門：
+4⃣f3f0 瑰貝鈺傳送門：
 利用以下連結
 https://portaly.cc/Monsurface
 查看各品牌綜合資訊。
