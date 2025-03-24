@@ -1,69 +1,87 @@
-import os
-import sqlite3
-import openai
-import requests
+from flask import Flask, request
 import gspread
+import requests
+import openai
+import os
 import pytz
-
-from fastapi import FastAPI, Request
-from mangum import Mangum
 from datetime import datetime
 from google.oauth2.service_account import Credentials
-
-from linebot.v3.webhook import WebhookParser
-from linebot.v3.messaging import MessagingApi, Configuration
+from rapidfuzz import process
+from linebot.v3.messaging import Configuration, ApiClient, MessagingApi, ReplyMessageRequest
+from linebot.v3.webhook import WebhookHandler
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
-from linebot.v3.messaging.models import TextMessage, ReplyMessageRequest
+from linebot.v3.messaging.models import TextMessage
+import re
 
-# === FastAPI + Mangum ===
-app = FastAPI()
-handler = Mangum(app)
+instruction_text = """
+🍀瑠貝鏱AI建材小幫手服務指南☘️
 
-# === LINE SDK 設定 ===
-configuration = Configuration(access_token=os.getenv("LINE_CHANNEL_ACCESS_TOKEN"))
-parser = WebhookParser(os.getenv("LINE_CHANNEL_SECRET"))
-line_api = MessagingApi(configuration)
+1⃣f3f0 查詢建材資訊：
+請輸入品牌與型號，
+例如：「品牌 ABC 型號 123」，
+或「ABC 123」皆可。
 
-# === Dropbox 檔案 ===
-DROPBOX_CRED_URL = os.getenv("DROPBOX_URL")           # credentials.json
-DROPBOX_DB_URL = os.getenv("DROPBOX_DB_URL")          # materials.db
+可查詢品牌：
+Formica富美家、Lavi樂維、
+Donacai多娜彩、萊適寶、松耐特、
+AICA愛卡、Melatone摩拉頓、
+科彰、吉祥、華旗、華槶、
+KEDING科定
 
-# === 本地路徑 ===
-LOCAL_CRED = "credentials.json"
-LOCAL_DB = "materials.db"
+2⃣f3f0 獲取熱門建材推薦：
+請輸入「熱門主推」
+或利用以下連結
+https://portaly.cc/Monsurface/pages/hot_catalog
+查看主打建材資訊。
 
-instruction_text = """🍀瑰貝鈺AI建材小幫手☘️
+3⃣f3f0 查詢技術資訊：
+請輸入「技術資訊」
+或利用以下連結
+https://portaly.cc/Monsurface/pages/technical
+查看建材品牌的技術資料。
 
-1️⃣ 查詢建材資訊：「品牌 ABC 型號 123」或「ABC 123」
-2️⃣ 熱門主推：https://portaly.cc/Monsurface/pages/hot_catalog
-3️⃣ 技術資訊：https://portaly.cc/Monsurface/pages/technical
-4️⃣ 傳送門：https://portaly.cc/Monsurface
+4⃣f3f0 瑠貝鏱傳送門：
+利用以下連結
+https://portaly.cc/Monsurface
+查看各品牌綜合資訊。
+
 """
 
-# === 檔案下載函式 ===
-def download_file(url, local_filename):
-    print(f"📥 準備下載: {local_filename}...")
-    response = requests.get(url)
-    if response.status_code == 200:
-        with open(local_filename, "wb") as f:
-            f.write(response.content)
-        print(f"✅ 成功下載: {local_filename}")
-    else:
-        print(f"❌ 無法下載 {local_filename}, 狀態碼: {response.status_code}")
+app = Flask(__name__)
 
-# 下載 credentials.json 與 materials.db
-download_file(DROPBOX_CRED_URL, LOCAL_CRED)
-download_file(DROPBOX_DB_URL, LOCAL_DB)
-
-# === Google Sheets 驗證 ===
-credentials = Credentials.from_service_account_file(LOCAL_CRED, scopes=[
-    "https://spreadsheets.google.com/feeds",
-    "https://www.googleapis.com/auth/drive"
-])
-client = gspread.authorize(credentials)
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
+LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
+DROPBOX_URL = os.getenv("DROPBOX_URL")
+DROPBOX_DB_URL = os.getenv("DROPBOX_DB_URL")
 SECURITY_SHEET_ID = os.getenv("SECURITY_SHEET_ID")
 
-# === 權限檢查 ===
+LOCAL_FILE_PATH = "credentials.json"
+LOCAL_DB_PATH = "materials.db"
+
+def download_file(url, path):
+    r = requests.get(url)
+    if r.status_code == 200:
+        with open(path, "wb") as f:
+            f.write(r.content)
+        print(f"✅ 成功下載: {path}")
+    else:
+        print(f"❌ 下載失敗: {path}，狀態碼: {r.status_code}")
+
+download_file(DROPBOX_URL, LOCAL_FILE_PATH)
+download_file(DROPBOX_DB_URL, LOCAL_DB_PATH)
+
+credentials = Credentials.from_service_account_file(
+    LOCAL_FILE_PATH,
+    scopes=["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+)
+client = gspread.authorize(credentials)
+
+configuration = Configuration(access_token=LINE_CHANNEL_ACCESS_TOKEN)
+api_client = ApiClient(configuration)
+line_bot_api = MessagingApi(api_client)
+handler = WebhookHandler(LINE_CHANNEL_SECRET)
+
 def check_user_permission(user_id):
     try:
         sheet = client.open_by_key(SECURITY_SHEET_ID).sheet1
@@ -77,101 +95,90 @@ def check_user_permission(user_id):
                     sheet.update_cell(idx, 4, t)
                     return True
                 return False
-        # 新使用者加入
         sheet.append_row([user_id, "否", 0, datetime.now(pytz.timezone("Asia/Taipei")).strftime("%Y-%m-%d %H:%M:%S")])
         return False
     except Exception as e:
-        print(f"❌ 權限檢查錯誤: {e}")
+        print(f"❌ 權限錯誤: {e}")
         return False
 
-# === 多資料表查詢 ===
+import sqlite3
+
 def search_materials(keyword: str, limit: int = 5):
     try:
-        conn = sqlite3.connect(LOCAL_DB)
-        cursor = conn.cursor()
+        conn = sqlite3.connect("materials.db")
+        cur = conn.cursor()
 
-        print(f"🔍 正在搜尋關鍵字：{keyword}")
-        matched = []
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-        tables = [row[0] for row in cursor.fetchall()]
+        # 取得所有資料表名稱
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        tables = [row[0] for row in cur.fetchall()]
 
+        results = []
         for table in tables:
             try:
-                cursor.execute(f"""
+                cur.execute(f"""
                     SELECT * FROM {table}
-                    WHERE 品牌 LIKE ? OR 系列 LIKE ? OR 款式 LIKE ? OR 型號 LIKE ?
-                       OR 花色名稱 LIKE ? OR 表面處理 LIKE ? OR 尺寸 LIKE ? OR 說明 LIKE ?
-                """, (f"%{keyword}%",)*8)
-                rows = cursor.fetchall()
+                    WHERE 系列 LIKE ? OR 款式 LIKE ? OR 型號 LIKE ? OR 花色名稱 LIKE ?
+                       OR 表面處理 LIKE ? OR 說明 LIKE ? OR 品牌 LIKE ?
+                    LIMIT ?
+                """, (f"%{keyword}%",)*7 + (limit,))
+                rows = cur.fetchall()
                 if rows:
-                    columns = [desc[0] for desc in cursor.description]
-                    matched += [dict(zip(columns, row)) for row in rows]
-                    if len(matched) >= limit:
-                        break
+                    columns = [desc[0] for desc in cur.description]
+                    results.extend([dict(zip(columns, row)) for row in rows])
             except Exception as e:
-                print(f"⚠️ 查詢表 {table} 時發生錯誤：{e}")
+                print(f"⚠️ 查詢 {table} 發生錯誤: {e}")
+                continue
         conn.close()
-        return matched if matched else None
+        return results if results else None
     except Exception as e:
-        print(f"❌ 查詢錯誤：{e}")
+        print(f"❌ 資料庫查詢錯誤: {e}")
         return None
 
-# === GPT 回答 ===
-def ask_chatgpt(user_question, matched_data=None):
+def ask_chatgpt(user_question, matched_materials=None):
     prompt = f"你是建材專家，請用繁體中文條列式回答使用者問題：「{user_question}」\n\n"
-    if matched_data:
+    if matched_materials:
         prompt += "以下為查到的建材資料：\n"
-        for m in matched_data:
+        for m in matched_materials:
             for k, v in m.items():
                 prompt += f"- {k}: {v}\n"
             prompt += "\n"
     else:
         prompt += instruction_text
-
-    client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    client = openai.Client(api_key=OPENAI_API_KEY)
     for model in ["gpt-3.5-turbo", "gpt-3.5-turbo-0125"]:
         try:
-            response = client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": "你是建材查詢小幫手"},
-                    {"role": "user", "content": prompt}
-                ]
-            )
-            return response.choices[0].message.content
-        except Exception as e:
-            print(f"⚠️ GPT 呼叫失敗：{e}")
+            res = client.chat.completions.create(model=model, messages=[
+                {"role": "system", "content": "你是建材查詢小幫手"},
+                {"role": "user", "content": prompt}
+            ])
+            return res.choices[0].message.content
+        except:
+            continue
     return "⚠️ 抱歉，目前無法取得建材資訊"
 
-# === LINE Webhook ===
-@app.post("/callback")
-async def callback(request: Request):
-    body = await request.body()
-    signature = request.headers.get("X-Line-Signature", "")
-
+@app.route("/callback", methods=["POST"])
+def callback():
+    signature = request.headers.get("X-Line-Signature")
+    body = request.get_data(as_text=True)
     try:
-        events = parser.parse(body.decode("utf-8"), signature)
+        handler.handle(body, signature)
     except Exception as e:
-        print(f"❌ Webhook 錯誤：{e}")
-        return "Invalid", 400
+        print(f"❌ webhook 錯誤: {e}")
+        return "error", 400
+    return "ok", 200
 
-    for event in events:
-        if isinstance(event, MessageEvent) and isinstance(event.message, TextMessageContent):
-            await handle_message(event)
-    return "OK", 200
-
-# === LINE 訊息處理 ===
-async def handle_message(event: MessageEvent):
+@handler.add(MessageEvent, message=TextMessageContent)
+def handle_message(event):
     user_id = event.source.user_id
     msg = event.message.text.strip()
     print(f"✅ 使用者 {user_id} 訊息：{msg}")
 
     if not check_user_permission(user_id):
-        reply = "❌ 您尚未有權限查詢建材，請聯絡管理員。"
+        reply = "❌ 您沒有查詢權限，請聯絡管理員"
     elif msg == "熱門主推":
-        reply = "📌 熱門建材：https://portaly.cc/Monsurface/pages/hot_catalog"
+        reply = "📌 熱門建材資訊：https://portaly.cc/Monsurface/pages/hot_catalog"
     elif msg == "技術資訊":
-        reply = "🔧 技術資料：https://portaly.cc/Monsurface/pages/technical"
+        reply = "🔧 技術資訊：https://portaly.cc/Monsurface/pages/technical"
     elif msg == "瑰貝鈺傳送門":
         reply = "🚪 傳送門：https://portaly.cc/Monsurface"
     else:
@@ -179,12 +186,15 @@ async def handle_message(event: MessageEvent):
         reply = ask_chatgpt(msg, result)
 
     try:
-        await line_api.reply_message(
-            ReplyMessageRequest(
-                reply_token=event.reply_token,
-                messages=[TextMessage(text=reply)]
-            )
-        )
+        line_bot_api.reply_message(ReplyMessageRequest(
+            reply_token=event.reply_token,
+            messages=[TextMessage(text=reply)]
+        ))
         print("📤 回覆成功")
     except Exception as e:
-        print(f"❌ 回覆失敗：{e}")
+        print(f"❌ 回覆失敗: {e}")
+
+if __name__ == "__main__":
+    from waitress import serve
+    print("🚀 LINE Bot 啟動中 (穩定版)...")
+    serve(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
