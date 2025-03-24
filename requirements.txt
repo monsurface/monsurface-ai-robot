@@ -8,7 +8,4 @@ requests
 line-bot-sdk
 waitress
 pytz
-fastapi
-uvicorn
-mangum
 rapidfuzz
