@@ -117,7 +117,7 @@ def extract_intent_and_keywords(user_question):
 def search_materials_by_keywords(keywords):
     conn = sqlite3.connect(LOCAL_DB_PATH)
     cur = conn.cursor()
-    cur.execute("SELECT name FROM sqlite_master WHERE type=[{table}]")
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
     tables = [row[0] for row in cur.fetchall()]
     results = []
 
