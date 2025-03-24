@@ -14,10 +14,34 @@ from linebot.v3.messaging.models import TextMessage
 
 # 說明訊息
 instruction_text = """
-❓請輸入建材相關問題，例如：
-- HK-561 是什麼品牌？
-- 有沒有摩拉頓的 KC 系列？
-- 科定 KD-8888 有什麼顏色？
+🍀瑰貝鈺AI建材小幫手服務指南☘️
+
+1️⃣ 查詢建材資訊：
+可直接輸入部分/完整型號或關鍵字
+
+目前資料庫可查詢品牌：
+Formica富美家、Lavi樂維、
+Donacai多娜彩、萊適寶、松耐特、
+AICA愛卡、Melatone摩拉頓、
+科彰、吉祥、華旗、華槶、
+
+2️⃣ 獲取熱門建材推薦：
+請輸入「熱門主推」
+或利用以下連結
+https://portaly.cc/Monsurface/pages/hot_catalog
+查看主打建材資訊。
+
+3️⃣ 查詢技術資訊：
+請輸入「技術資訊」
+或利用以下連結
+https://portaly.cc/Monsurface/pages/technical
+查看建材品牌的技術資料。
+
+4️⃣ 瑰貝鈺傳送門：
+利用以下連結
+https://portaly.cc/Monsurface
+查看各品牌綜合資訊。
+
 """
 
 # 環境設定
@@ -163,7 +187,7 @@ def generate_response(user_question, matched_materials):
         return res.choices[0].message.content.strip()
     except Exception as e:
         print(f"❌ 回覆產生錯誤: {e}")
-        return "⚠️ 抱歉，目前無法取得建材資訊"
+        return "⚠️ 資訊量太大，請限縮單一型號或關鍵字"
 
 # ✅ LINE webhook callback
 @app.route("/callback", methods=["POST"])
