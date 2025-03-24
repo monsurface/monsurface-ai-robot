@@ -12,7 +12,6 @@ from linebot.v3.webhook import WebhookHandler
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
 from linebot.v3.messaging.models import TextMessage
 
-# 說明訊息
 instruction_text = """
 🍀瑰貝鈺AI建材小幫手服務指南☘️
 
@@ -41,10 +40,8 @@ https://portaly.cc/Monsurface/pages/technical
 利用以下連結
 https://portaly.cc/Monsurface
 查看各品牌綜合資訊。
-
 """
 
-# 環境設定
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
 LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
@@ -52,14 +49,11 @@ DROPBOX_URL = os.getenv("DROPBOX_URL")
 DROPBOX_DB_URL = os.getenv("DROPBOX_DB_URL")
 SECURITY_SHEET_ID = os.getenv("SECURITY_SHEET_ID")
 
-# 檔案路徑
 LOCAL_FILE_PATH = "credentials.json"
 LOCAL_DB_PATH = "materials.db"
 
-# Flask App
 app = Flask(__name__)
 
-# 下載 Dropbox 憑證與資料庫
 def download_file(url, path):
     r = requests.get(url)
     if r.status_code == 200:
@@ -72,20 +66,17 @@ def download_file(url, path):
 download_file(DROPBOX_URL, LOCAL_FILE_PATH)
 download_file(DROPBOX_DB_URL, LOCAL_DB_PATH)
 
-# 授權 Google Sheets
 credentials = Credentials.from_service_account_file(
     LOCAL_FILE_PATH,
     scopes=["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 )
 client = gspread.authorize(credentials)
 
-# LINE Bot 設定
 configuration = Configuration(access_token=LINE_CHANNEL_ACCESS_TOKEN)
 api_client = ApiClient(configuration)
 line_bot_api = MessagingApi(api_client)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
 
-# ✅ 權限驗證
 def check_user_permission(user_id):
     try:
         sheet = client.open_by_key(SECURITY_SHEET_ID).sheet1
@@ -105,23 +96,19 @@ def check_user_permission(user_id):
         print(f"❌ 權限錯誤: {e}")
         return False
 
-# ✅ GPT：提取意圖與關鍵字
 def extract_intent_and_keywords(user_question):
     prompt = f"""
 你是一位建材助理，請從使用者的問題中提取：
 1. 查詢意圖（例如：查型號資訊、找品牌系列、比較顏色等）
 2. 相關關鍵字（以字串陣列格式呈現）
-
 請回傳 JSON 格式如下：
 {{
   "意圖": "...",
   "關鍵字": ["...", "..."]
 }}
-
 使用者問題如下：
 「{user_question}」
 """
-
     client = openai.Client(api_key=OPENAI_API_KEY)
     try:
         res = client.chat.completions.create(
@@ -132,46 +119,42 @@ def extract_intent_and_keywords(user_question):
             ]
         )
         result = res.choices[0].message.content.strip()
-        return eval(result)  # ⚠️ 假設結果是簡單 JSON 格式
+        return eval(result)
     except Exception as e:
         print(f"❌ 意圖擷取錯誤: {e}")
         return {"意圖": "未知", "關鍵字": []}
 
-# ✅ 關鍵字搜尋資料庫
-def search_materials_by_keywords(keywords):
+def search_summary_by_keywords(keywords):
     conn = sqlite3.connect(LOCAL_DB_PATH)
     cur = conn.cursor()
-    cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    tables = [row[0] for row in cur.fetchall()]
-    results = []
+    conditions = ["摘要 LIKE ?" for _ in keywords]
+    query = f"SELECT 型號, 來源表 FROM materials_summary WHERE {' OR '.join(conditions)} LIMIT 5"
+    values = [f"%{kw}%" for kw in keywords]
+    cur.execute(query, values)
+    rows = cur.fetchall()
+    conn.close()
+    return rows  # list of (型號, 來源表)
 
-    for table in tables:
+def lookup_full_materials(models_and_tables):
+    conn = sqlite3.connect(LOCAL_DB_PATH)
+    results = []
+    for 型號, 來源表 in models_and_tables:
         try:
-            cur.execute(f'PRAGMA table_info("{table}")')  # ✅ 要加 f 和引號
-            columns = [col[1] for col in cur.fetchall()]
-            conditions = [f"{col} LIKE ?" for col in columns for _ in keywords]
-            query = f'SELECT * FROM "{table}" WHERE {" OR ".join(conditions)}'
-            values = [f"%{kw}%" for _ in columns for kw in keywords]
-            cur.execute(query, values)  # ✅ 傳入 SQL 查詢與值
-            rows = cur.fetchall()
-            for row in rows:
-                results.append(dict(zip(columns, row)))
+            df = pd.read_sql_query(f'SELECT * FROM "{來源表}" WHERE 型號 = ?', conn, params=(型號,))
+            for _, row in df.iterrows():
+                results.append(dict(row))
         except Exception as e:
-            print(f"⚠️ 資料表讀取失敗 {table}: {e}")
+            print(f"⚠️ 無法查詢 {來源表} 的 {型號}: {e}")
     conn.close()
     return results
 
-# ✅ GPT 回覆查詢結果
 def generate_response(user_question, matched_materials):
     prompt = f"""
 你是一位專業建材助理，請根據使用者的問題與下方建材資料，條列出所有符合的建材型號完整資訊。
-
 使用者問題：
 「{user_question}」
-
-建材資料（每筆為一個建材）：
+建材資料如下（每筆為一個建材）：
 {matched_materials}
-
 請逐筆條列說明，若找不到任何資料，請回答：
 「{instruction_text}」
 """
@@ -189,7 +172,6 @@ def generate_response(user_question, matched_materials):
         print(f"❌ 回覆產生錯誤: {e}")
         return "⚠️ 資訊量太大，請限縮單一型號或關鍵字"
 
-# ✅ LINE webhook callback
 @app.route("/callback", methods=["POST"])
 def callback():
     signature = request.headers.get("X-Line-Signature")
@@ -201,7 +183,6 @@ def callback():
         return "error", 400
     return "ok", 200
 
-# ✅ 處理使用者訊息
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
     user_id = event.source.user_id
@@ -223,8 +204,12 @@ def handle_message(event):
         if not keywords:
             reply = instruction_text
         else:
-            matched = search_materials_by_keywords(keywords)
-            reply = generate_response(msg, matched)
+            model_refs = search_summary_by_keywords(keywords)
+            if not model_refs:
+                reply = instruction_text
+            else:
+                full_data = lookup_full_materials(model_refs)
+                reply = generate_response(msg, full_data)
 
     try:
         line_bot_api.reply_message(
@@ -237,8 +222,7 @@ def handle_message(event):
     except Exception as e:
         print(f"❌ 回覆失敗: {e}")
 
-# ✅ 主程式啟動
 if __name__ == "__main__":
     from waitress import serve
-    print("🚀 LINE Bot 啟動中（關鍵字智慧搜尋版本）...")
+    print("🚀 LINE Bot 啟動中（智慧摘要查詢版本）...")
     serve(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
