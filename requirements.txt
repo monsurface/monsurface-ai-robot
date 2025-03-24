@@ -10,3 +10,4 @@ waitress
 pytz
 fastapi
 uvicorn
+mangum
