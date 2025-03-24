@@ -123,10 +123,10 @@ def search_materials_by_keywords(keywords):
 
     for table in tables:
         try:
-            cur.execute(f"PRAGMA table_info({table})")
+            cur.execute(f'PRAGMA table_info("{table}")')
             columns = [col[1] for col in cur.fetchall()]
             conditions = [f"{col} LIKE ?" for col in columns for _ in keywords]
-            query = f"SELECT * FROM {table} WHERE {' OR '.join(conditions)}"
+            query = f'SELECT * FROM "{table}" WHERE {" OR ".join(conditions)}'
             values = [f"%{kw}%" for _ in columns for kw in keywords]
             cur.execute(query, values)
             rows = cur.fetchall()
