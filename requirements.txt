@@ -9,3 +9,4 @@ line-bot-sdk
 waitress
 pytz
 rapidfuzz
+pandas
