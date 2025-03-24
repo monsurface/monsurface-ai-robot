@@ -1,19 +1,24 @@
 import os
 import openai
 import sqlite3
-from flask import Flask, request, abort
-from datetime import datetime
 import gspread
 import requests
-import pytz
+from flask import Flask, request
+from datetime import datetime
 from google.oauth2.service_account import Credentials
-from linebot import LineBotApi, WebhookHandler
-from linebot.exceptions import InvalidSignatureError
-from linebot.models import MessageEvent, TextMessage, TextSendMessage
+import pytz
+
+from linebot.v3.messaging import Configuration, ApiClient, MessagingApi, ReplyMessageRequest
+from linebot.v3.messaging.models import TextMessage
+from linebot.v3.webhook import WebhookHandler
+from linebot.v3.webhooks import MessageEvent, TextMessageContent
 
 app = Flask(__name__)
-line_bot_api = LineBotApi(os.getenv("LINE_CHANNEL_ACCESS_TOKEN"))
+configuration = Configuration(access_token=os.getenv("LINE_CHANNEL_ACCESS_TOKEN"))
+api_client = ApiClient(configuration)
+line_bot_api = MessagingApi(api_client)
 handler = WebhookHandler(os.getenv("LINE_CHANNEL_SECRET"))
+
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 DROPBOX_URL = os.getenv("DROPBOX_URL")
 SECURITY_SHEET_ID = os.getenv("SECURITY_SHEET_ID")
@@ -61,7 +66,7 @@ def search_materials_from_db(keyword: str, limit: int = 5):
     try:
         conn = sqlite3.connect("materials.db")
         cur = conn.cursor()
-        print(f"✅ 已成功開啟資料庫，正在搜尋關鍵字：{keyword}")  # << 加這行
+        print(f"✅ 正在搜尋關鍵字：{keyword}")
         cur.execute("""
             SELECT * FROM materials
             WHERE 系列 LIKE ? OR 款式 LIKE ? OR 型號 LIKE ? OR 花色名稱 LIKE ?
@@ -73,7 +78,7 @@ def search_materials_from_db(keyword: str, limit: int = 5):
         conn.close()
         return [dict(zip(columns, row)) for row in rows] if rows else None
     except Exception as e:
-        print(f"❌ 查詢錯誤: {e}")
+        print(f"❌ 資料庫查詢錯誤: {e}")
         return None
 
 def ask_chatgpt(user_question, matched_materials=None):
@@ -104,11 +109,12 @@ def callback():
     body = request.get_data(as_text=True)
     try:
         handler.handle(body, signature)
-    except InvalidSignatureError:
-        abort(400)
-    return "OK"
+    except Exception as e:
+        print("❌ webhook 處理失敗", e)
+        return "error", 400
+    return "OK", 200
 
-@handler.add(MessageEvent, message=TextMessage)
+@handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
     user_id = event.source.user_id
     msg = event.message.text.strip()
@@ -125,7 +131,14 @@ def handle_message(event):
         result = search_materials_from_db(msg)
         reply = ask_chatgpt(msg, result)
 
-    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+    line_bot_api.reply_message(
+        ReplyMessageRequest(
+            reply_token=event.reply_token,
+            messages=[TextMessage(text=reply)]
+        )
+    )
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+    from waitress import serve
+    print("🚀 啟動中 (line-bot-sdk v3)")
+    serve(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
