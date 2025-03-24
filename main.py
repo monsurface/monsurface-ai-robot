@@ -5,6 +5,7 @@ import openai
 import os
 import pytz
 import sqlite3
+import pandas as pd
 from datetime import datetime
 from google.oauth2.service_account import Credentials
 from linebot.v3.messaging import Configuration, ApiClient, MessagingApi, ReplyMessageRequest
