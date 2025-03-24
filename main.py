@@ -1,5 +1,3 @@
-# 以下是整合後的 main.py 內容，符合使用者的需求：
-main_py_code = """
 import os
 import openai
 import sqlite3
@@ -22,13 +20,13 @@ DROPBOX_URL = os.getenv("DROPBOX_URL")
 SECURITY_SHEET_ID = os.getenv("SECURITY_SHEET_ID")
 LOCAL_FILE_PATH = "credentials.json"
 
-instruction_text = \"\"\"🍀瑰貝鈺AI建材小幫手☘️
+instruction_text = """🍀瑰貝鈺AI建材小幫手☘️
 
 1️⃣ 查詢建材資訊：「品牌 ABC 型號 123」或「ABC 123」
 2️⃣ 熱門主推：https://portaly.cc/Monsurface/pages/hot_catalog
 3️⃣ 技術資訊：https://portaly.cc/Monsurface/pages/technical
 4️⃣ 傳送門：https://portaly.cc/Monsurface
-\"\"\"
+"""
 
 def download_credentials():
     r = requests.get(DROPBOX_URL)
@@ -66,13 +64,13 @@ def search_materials_from_db(keyword: str, limit: int = 5):
         cur = conn.cursor()
         print(f"🔍 正在搜尋關鍵字：{keyword}")
 
-        query = \"\"\"
+        query = """
         SELECT * FROM {table}
         WHERE 品牌 LIKE ? OR 系列 LIKE ? OR 款式 LIKE ? OR 型號 LIKE ? OR 花色名稱 LIKE ?
               OR 表面處理 LIKE ? OR 尺寸 LIKE ? OR 說明 LIKE ? OR 給設計師的報價 LIKE ?
               OR 圖片連結 LIKE ? OR 官網連結 LIKE ?
         LIMIT ?
-        \"\"\"
+        """
 
         result_rows = []
         tables = cur.execute("SELECT name FROM sqlite_master WHERE type='table';").fetchall()
@@ -91,13 +89,13 @@ def search_materials_from_db(keyword: str, limit: int = 5):
         return None
 
 def ask_chatgpt(user_question, matched_materials=None):
-    prompt = f"你是建材專家，請用繁體中文條列式回答使用者問題：「{user_question}」\\n\\n"
+    prompt = f"你是建材專家，請用繁體中文條列式回答使用者問題：「{user_question}」\n\n"
     if matched_materials:
-        prompt += "以下為查到的建材資料：\\n"
+        prompt += "以下為查到的建材資料：\n"
         for m in matched_materials:
             for k, v in m.items():
-                prompt += f"- {k}: {v}\\n"
-            prompt += "\\n"
+                prompt += f"- {k}: {v}\n"
+            prompt += "\n"
     else:
         prompt += instruction_text
     client = openai.Client(api_key=OPENAI_API_KEY)
@@ -147,4 +145,3 @@ def handle_message(event):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
-"""
