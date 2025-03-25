@@ -53,6 +53,43 @@ SECURITY_SHEET_ID = os.getenv("SECURITY_SHEET_ID")
 LOCAL_FILE_PATH = "credentials.json"
 LOCAL_DB_PATH = "materials.db"
 
+KNOWN_BRANDS = ['富美家', 'LAVI', '摩拉頓', '松華', 'AICA', '華旗', '華槶', 'GoodWare', 'KOCHANG']
+
+def extract_brand_from_keywords(keywords):
+    for kw in keywords:
+        for brand in KNOWN_BRANDS:
+            if brand in kw:
+                return brand
+    return None
+
+def extract_intent_and_keywords(user_question):
+    prompt = f"""
+你是一位建材助理，請從使用者的問題中提取：
+1. 查詢意圖（例如：查型號資訊、找品牌系列、比較顏色等）
+2. 相關關鍵字（以字串陣列格式呈現）
+請回傳 JSON 格式如下：
+{{
+  "意圖": "...",
+  "關鍵字": ["...", "..."]
+}}
+使用者問題如下：
+「{user_question}」
+"""
+    client = openai.Client(api_key=OPENAI_API_KEY)
+    try:
+        res = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "你是建材意圖識別助手"},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        result = res.choices[0].message.content.strip()
+        return eval(result)
+    except Exception as e:
+        print(f"❌ 意圖擷取錯誤: {e}")
+        return {"意圖": "未知", "關鍵字": []}
+
 app = Flask(__name__)
 
 KNOWN_BRANDS = ['富美家', 'LAVI', '摩拉頓', '松華', 'AICA', '華旗', '華槶', 'GoodWare', 'KOCHANG']
@@ -142,7 +179,7 @@ def callback():
         print(f"❌ webhook 錯誤: {e}")
         return "error", 400
     return "ok", 200
-
+    
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
     user_id = event.source.user_id
