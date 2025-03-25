@@ -55,75 +55,14 @@ LOCAL_DB_PATH = "materials.db"
 
 app = Flask(__name__)
 
-def download_file(url, path):
-    r = requests.get(url)
-    if r.status_code == 200:
-        with open(path, "wb") as f:
-            f.write(r.content)
-        print(f"✅ 成功下載: {path}")
-    else:
-        print(f"❌ 下載失敗: {path}，狀態碼: {r.status_code}")
+KNOWN_BRANDS = ['富美家', 'LAVI', '摩拉頓', '松華', 'AICA', '華旗', '華槶', 'GoodWare', 'KOCHANG']
 
-download_file(DROPBOX_URL, LOCAL_FILE_PATH)
-download_file(DROPBOX_DB_URL, LOCAL_DB_PATH)
-
-credentials = Credentials.from_service_account_file(
-    LOCAL_FILE_PATH,
-    scopes=["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-)
-client = gspread.authorize(credentials)
-
-configuration = Configuration(access_token=LINE_CHANNEL_ACCESS_TOKEN)
-api_client = ApiClient(configuration)
-line_bot_api = MessagingApi(api_client)
-handler = WebhookHandler(LINE_CHANNEL_SECRET)
-
-def check_user_permission(user_id):
-    try:
-        sheet = client.open_by_key(SECURITY_SHEET_ID).sheet1
-        data = sheet.get_all_records()
-        for idx, row in enumerate(data, start=2):
-            if row["Line User ID"].strip() == user_id:
-                if row["是否有權限"].strip() == "是":
-                    count = int(row["使用次數"]) + 1
-                    sheet.update_cell(idx, 3, count)
-                    t = datetime.now(pytz.timezone("Asia/Taipei")).strftime("%Y-%m-%d %H:%M:%S")
-                    sheet.update_cell(idx, 4, t)
-                    return True
-                return False
-        sheet.append_row([user_id, "否", 0, datetime.now(pytz.timezone("Asia/Taipei")).strftime("%Y-%m-%d %H:%M:%S")])
-        return False
-    except Exception as e:
-        print(f"❌ 權限錯誤: {e}")
-        return False
-
-def extract_intent_and_keywords(user_question):
-    prompt = f"""
-你是一位建材助理，請從使用者的問題中提取：
-1. 查詢意圖（例如：查型號資訊、找品牌系列、比較顏色等）
-2. 相關關鍵字（以字串陣列格式呈現）
-請回傳 JSON 格式如下：
-{{
-  "意圖": "...",
-  "關鍵字": ["...", "..."]
-}}
-使用者問題如下：
-「{user_question}」
-"""
-    client = openai.Client(api_key=OPENAI_API_KEY)
-    try:
-        res = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "你是建材意圖識別助手"},
-                {"role": "user", "content": prompt}
-            ]
-        )
-        result = res.choices[0].message.content.strip()
-        return eval(result)
-    except Exception as e:
-        print(f"❌ 意圖擷取錯誤: {e}")
-        return {"意圖": "未知", "關鍵字": []}
+def extract_brand_from_keywords(keywords):
+    for kw in keywords:
+        for brand in KNOWN_BRANDS:
+            if brand in kw:
+                return brand
+    return None
 
 def search_summary_by_keywords(keywords):
     conn = sqlite3.connect(LOCAL_DB_PATH)
