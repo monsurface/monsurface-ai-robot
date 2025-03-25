@@ -95,23 +95,20 @@ def check_user_permission(user_id):
         print(f"❌ 權限錯誤: {e}")
         return False
 
-def extract_brand_from_keywords(keywords):
-    for kw in keywords:
-        for brand in KNOWN_BRANDS:
-            if brand in kw:
-                return brand
-    return None
-
 def extract_intent_and_keywords(user_question):
     prompt = f"""
 你是一位建材助理，請從使用者的問題中提取：
 1. 查詢意圖（例如：查型號資訊、找品牌系列、比較顏色等）
 2. 相關關鍵字（以字串陣列格式呈現）
-請回傳 JSON 格式如下：
+
+請注意：
+- 若出現「黑色」「白色」「灰色」「木紋」「霧面」等詞，請主動轉化成適合查詢的字，例如：黑、白、灰、木、霧
+- 請回傳 JSON 格式如下：
 {{
   "意圖": "...",
   "關鍵字": ["...", "..."]
 }}
+
 使用者問題如下：
 「{user_question}」
 """
