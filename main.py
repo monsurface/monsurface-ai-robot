@@ -128,13 +128,33 @@ def extract_intent_and_keywords(user_question):
 def search_summary_by_keywords(keywords):
     conn = sqlite3.connect(LOCAL_DB_PATH)
     cur = conn.cursor()
-    conditions = ["摘要 LIKE ?" for _ in keywords]
-    query = f"SELECT 型號, 來源表 FROM materials_summary WHERE {' OR '.join(conditions)} LIMIT 5"
-    values = [f"%{kw}%" for kw in keywords]
+
+    brand = extract_brand_from_keywords(keywords)
+    filtered_keywords = [kw for kw in keywords if kw != brand]
+
+    keyword_conditions = ["(摘要 LIKE ? OR 型號 LIKE ? OR 花色 LIKE ?)" for _ in filtered_keywords]
+    values = []
+    for kw in filtered_keywords:
+        values.extend([f"%{kw}%"] * 3)
+
+    if brand:
+        query = f"""
+        SELECT 型號, 來源表 FROM materials_summary
+        WHERE 品牌 LIKE ? AND {' AND '.join(keyword_conditions)}
+        LIMIT 5
+        """
+        values = [f"%{brand}%"] + values
+    else:
+        query = f"""
+        SELECT 型號, 來源表 FROM materials_summary
+        WHERE {' AND '.join(keyword_conditions)}
+        LIMIT 5
+        """
+
     cur.execute(query, values)
     rows = cur.fetchall()
     conn.close()
-    return rows  # list of (型號, 來源表)
+    return rows
 
 def lookup_full_materials(models_and_tables):
     conn = sqlite3.connect(LOCAL_DB_PATH)
