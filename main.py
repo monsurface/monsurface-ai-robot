@@ -92,6 +92,11 @@ def extract_intent_and_keywords(user_question):
 
 app = Flask(__name__)
 
+configuration = Configuration(access_token=LINE_CHANNEL_ACCESS_TOKEN)
+api_client = ApiClient(configuration)
+line_bot_api = MessagingApi(api_client)
+handler = WebhookHandler(LINE_CHANNEL_SECRET)
+
 KNOWN_BRANDS = ['富美家', 'LAVI', '摩拉頓', '松華', 'AICA', '華旗', '華槶', 'GoodWare', 'KOCHANG']
 
 def extract_brand_from_keywords(keywords):
