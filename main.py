@@ -95,24 +95,23 @@ def check_user_permission(user_id):
         print(f"❌ 權限錯誤: {e}")
         return False
 
+def extract_brand_from_keywords(keywords):
+    for kw in keywords:
+        for brand in KNOWN_BRANDS:
+            if brand in kw:
+                return brand
+    return None
+
 def extract_intent_and_keywords(user_question):
     prompt = f"""
 你是一位建材助理，請從使用者的問題中提取：
 1. 查詢意圖（例如：查型號資訊、找品牌系列、比較顏色等）
 2. 相關關鍵字（以字串陣列格式呈現）
-
-請注意：
-- 若出現「白色」、「黑色」、「灰色」、「木紋」、「亮白」、「亮灰」、「淺灰」、「深灰」、「霧面」、「亮面」等，請轉換為精簡查詢詞：白、黑、灰、木、亮、霧等
-- 若出現品牌名稱的錯字（如「富美家」誤寫為「富美」、「富美佳」、「formoca」），請轉換為正確品牌名（富美家）
-- 若品牌有綽號或簡寫（如「AICA」、「愛卡」），請轉換為資料庫中正式品牌名稱
-- 請去除語助詞與無用字（如「我想找」、「是否有」、「請問」）
-
-請用 JSON 格式回傳，如下：
+請回傳 JSON 格式如下：
 {{
   "意圖": "...",
   "關鍵字": ["...", "..."]
 }}
-
 使用者問題如下：
 「{user_question}」
 """
@@ -131,32 +130,22 @@ def extract_intent_and_keywords(user_question):
         print(f"❌ 意圖擷取錯誤: {e}")
         return {"意圖": "未知", "關鍵字": []}
 
-def search_summary_by_keywords(keywords):
-    conn = sqlite3.connect(LOCAL_DB_PATH)
-    cur = conn.cursor()
-
-    # 每個關鍵字都要至少出現在三欄之一，使用 AND 交集查詢
-    conditions = ["(" + " OR ".join([f"品牌 LIKE ?", f"型號 LIKE ?", f"花色 LIKE ?", f"摘要 LIKE ?"]) + ")" for _ in keywords]
-    query = f"""
-        SELECT 型號, 來源表 FROM materials_summary
-        WHERE {' AND '.join(conditions)}
-        LIMIT 5
-    """
-    values = []
-    for kw in keywords:
-        values.extend([f"%{kw}%"] * 4)
-
-    cur.execute(query, values)
-    rows = cur.fetchall()
-    conn.close()
-    return rows
-
 def lookup_full_materials(models_and_tables):
     conn = sqlite3.connect(LOCAL_DB_PATH)
     results = []
     for 型號, 來源表 in models_and_tables:
         try:
             df = pd.read_sql_query(f'SELECT * FROM "{來源表}" WHERE 型號 = ?', conn, params=(型號,))
+            if df.empty:
+                # fallback: try LIKE
+                df = pd.read_sql_query(f'SELECT * FROM "{來源表}" WHERE 型號 LIKE ?', conn, params=(f"%{型號}%",))
+                if df.empty:
+                    print(f"⚠️ 查詢失敗：找不到型號 {型號} 於資料表 {來源表}")
+                else:
+                    print(f"✅ 模糊查詢成功：{型號} → {len(df)} 筆於 {來源表}")
+            else:
+                print(f"✅ 精準查詢成功：{型號} 於 {來源表}")
+
             for _, row in df.iterrows():
                 results.append(dict(row))
         except Exception as e:
@@ -220,11 +209,23 @@ def handle_message(event):
         if not keywords:
             reply = instruction_text
         else:
-            model_refs = search_summary_by_keywords(keywords)
-            if not model_refs:
+            # fallback 查詢摘要表
+            conn = sqlite3.connect(LOCAL_DB_PATH)
+            cur = conn.cursor()
+            conditions = ["摘要 LIKE ? OR 型號 LIKE ? OR 花色 LIKE ?" for _ in keywords]
+            query = f"SELECT 型號, 來源表 FROM materials_summary WHERE {' AND '.join(['(' + c + ')' for c in conditions])} LIMIT 5"
+            values = []
+            for kw in keywords:
+                values.extend([f"%{kw}%"] * 3)
+            cur.execute(query, values)
+            rows = cur.fetchall()
+            conn.close()
+
+            if not rows:
+                print("⚠️ 查無任何符合條件的型號")
                 reply = instruction_text
             else:
-                full_data = lookup_full_materials(model_refs)
+                full_data = lookup_full_materials(rows)
                 reply = generate_response(msg, full_data)
 
     try:
@@ -241,6 +242,6 @@ def handle_message(event):
 if __name__ == "__main__":
     download_file(DROPBOX_URL, LOCAL_FILE_PATH)
     download_file(DROPBOX_DB_URL, LOCAL_DB_PATH)
-    print("🚀 LINE Bot 啟動中（智慧摘要查詢版本）...")
+    print("🚀 LINE Bot 啟動中（智慧摘要查詢版本 + fallback log）...")
     from waitress import serve
     serve(app, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
