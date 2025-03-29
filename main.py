@@ -143,7 +143,6 @@ def lookup_full_materials(models_and_tables):
         try:
             df = pd.read_sql_query(f'SELECT * FROM "{來源表}" WHERE 型號 = ?', conn, params=(型號,))
             if df.empty:
-                # fallback: try LIKE
                 df = pd.read_sql_query(f'SELECT * FROM "{來源表}" WHERE 型號 LIKE ?', conn, params=(f"%{型號}%",))
                 if df.empty:
                     print(f"⚠️ 查詢失敗：找不到型號 {型號} 於資料表 {來源表}")
@@ -161,6 +160,15 @@ def lookup_full_materials(models_and_tables):
 
 def generate_response(user_question, matched_materials):
     print(f"🧩 matched_materials:\n{matched_materials}")
+
+    if len(matched_materials) > 5:
+        lines = ["以下為符合的建材（僅列出品牌、型號與花色）："]
+        for row in matched_materials:
+            brand = row.get("品牌", "未知品牌")
+            model = row.get("型號", "未知型號")
+            color = row.get("花色", "未知花色")
+            lines.append(f"- {brand} | {model} | {color}")
+        return "\n".join(lines)
 
     prompt = f"""
 你是一位專業建材助理，請根據使用者的問題與下方建材資料，條列出所有符合的建材型號完整資訊。
@@ -232,13 +240,11 @@ def handle_message(event):
         keywords = parsed.get("關鍵字", [])
         if not keywords:
             reply = instruction_text
-        
         else:
-            # fallback 查詢摘要表
             conn = sqlite3.connect(LOCAL_DB_PATH)
             cur = conn.cursor()
             conditions = ["摘要 LIKE ? OR 型號 LIKE ? OR 花色 LIKE ?"] * len(keywords)
-            query = f"SELECT 型號, 來源表 FROM materials_summary WHERE {' AND '.join(['(' + c + ')' for c in conditions])} LIMIT 8"
+            query = f"SELECT 型號, 來源表 FROM materials_summary WHERE {' AND '.join(['(' + c + ')' for c in conditions])} LIMIT 20"
             values = []
             for kw in keywords:
                 values.extend([f"%{kw}%"] * 3)
