@@ -14,7 +14,7 @@ from linebot.v3.webhooks import MessageEvent, TextMessageContent
 from linebot.v3.messaging.models import TextMessage
 
 search_text = """
-🔍 建材查詢方式：
+🔍 AI建材查詢方式：
 1️⃣ 輸入型號：例如 8830
 2️⃣ 輸入結合品牌與型號：例如 富美家的7378G
 3️⃣ 輸入結合品牌與花色：例如 樂維的白色
