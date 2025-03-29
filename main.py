@@ -14,7 +14,7 @@ from linebot.v3.webhooks import MessageEvent, TextMessageContent
 from linebot.v3.messaging.models import TextMessage
 
 search_text = """
-🔍 AI建材查詢方式：
+🔍 AI建材查詢方式(需要申請權限）：
 1️⃣ 輸入型號：例如 8830
 2️⃣ 輸入結合品牌與型號：例如 富美家的7378G
 3️⃣ 輸入結合品牌與花色：例如 樂維的白色
@@ -225,7 +225,7 @@ def handle_message(event):
         reply = search_text
 
     elif msg in ["建材總表"]:
-        reply = "🗄️ 建材總表：https://reurl.cc/1K2vGY"
+        reply = "🗄️ 建材總表：https://reurl.cc/1K2vGY，需要申請權限"
 
     elif msg in ["熱門主推"]:
         reply = "📌 熱門主推：https://portaly.cc/Monsurface/pages/hot_catalog"
