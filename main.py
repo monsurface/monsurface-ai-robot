@@ -239,7 +239,7 @@ def handle_message(event):
 
             if not rows:
                 print("⚠️ 查無任何符合條件的型號")
-                reply = ⚠️ 查無任何符合條件的型號
+                reply = "⚠️ 查無任何符合條件的型號"
             else:
                 full_data = lookup_full_materials(rows)
                 reply = generate_response(msg, full_data)
