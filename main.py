@@ -160,15 +160,20 @@ def lookup_full_materials(models_and_tables):
     return results
 
 def generate_response(user_question, matched_materials):
+    print(f"🧩 matched_materials:\n{matched_materials}")
+
     prompt = f"""
 你是一位專業建材助理，請根據使用者的問題與下方建材資料，條列出所有符合的建材型號完整資訊。
 使用者問題：
 「{user_question}」
+
 建材資料如下（每筆為一個建材）：
 {matched_materials}
+
 請逐筆條列說明，若找不到任何資料，請回答：
 「{instruction_text}」
-"""
+    """
+
     client = openai.Client(api_key=OPENAI_API_KEY)
     try:
         res = client.chat.completions.create(
@@ -178,9 +183,13 @@ def generate_response(user_question, matched_materials):
                 {"role": "user", "content": prompt}
             ]
         )
-        return res.choices[0].message.content.strip()
+        reply = res.choices[0].message.content.strip()
+        if not reply:
+            print("⚠️ GPT 沒有回應任何內容，啟用 fallback")
+            return instruction_text
+        return reply
     except Exception as e:
-        print(f"❌ 回覆產生錯誤: {e}")
+        print(f"❌ 回應產生錯誤：{e}")
         return "⚠️ 資訊量太大，請限縮單一型號或關鍵字"
 
 @app.route("/callback", methods=["POST"])
