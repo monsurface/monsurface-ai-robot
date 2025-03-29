@@ -242,30 +242,28 @@ def handle_message(event):
     msg = event.message.text.strip()
     print(f"✅ 使用者 {user_id} 訊息：{msg}")
 
-    if not check_user_permission(user_id):
-        reply = "❌ 您沒有查詢權限，請聯絡管理員"
+    public_commands = ["建材總表", "熱門主推", "技術資訊", "傳送門", "瑰貝鈺傳送門", "AI建材查詢", "查建材", "查詢建材"]
 
-    elif msg in ["AI建材查詢", "查建材", "查詢建材"]:
-        reply = search_text
+    if msg in public_commands:
+        if msg in ["AI建材查詢", "查建材", "查詢建材"]:
+            reply = search_text
+        elif msg == "建材總表":
+            reply = "🗄️ 建材總表（需要申請權限）：https://reurl.cc/1K2vGY"
+        elif msg == "熱門主推":
+            reply = "📌 熱門主推：https://portaly.cc/Monsurface/pages/hot_catalog"
+        elif msg == "技術資訊":
+            reply = "🔧 技術資訊：https://portaly.cc/Monsurface/pages/technical"
+        else:
+            reply = "🌐 傳送門：https://portaly.cc/Monsurface"
 
-    elif msg in ["建材總表"]:
-        reply = "🗄️ 建材總表（需要申請權限）：https://reurl.cc/1K2vGY"
+    elif not check_user_permission(user_id):
+        reply = "❌ 您沒有AI建材查詢權限，請聯絡瑰貝鈺管理員"
 
-    elif msg in ["熱門主推"]:
-        reply = "📌 熱門主推：https://portaly.cc/Monsurface/pages/hot_catalog"
-
-    elif msg in ["技術資訊"]:
-        reply = "🔧 技術資訊：https://portaly.cc/Monsurface/pages/technical"
-
-    elif msg in ["傳送門", "瑰貝鈺傳送門"]:
-        reply = "🌐 傳送門：https://portaly.cc/Monsurface"
-        
     else:
         parsed = extract_intent_and_keywords(msg)
         keywords = parsed.get("關鍵字", [])
         if not keywords:
             reply = instruction_text
-        
         else:
             # fallback 查詢摘要表
             conn = sqlite3.connect(LOCAL_DB_PATH)
