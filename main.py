@@ -13,6 +13,14 @@ from linebot.v3.webhook import WebhookHandler
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
 from linebot.v3.messaging.models import TextMessage
 
+Search_text = """
+建材查詢方式：
+1️⃣ 輸入型號：例如 8830
+2️⃣ 輸入結合品牌與型號：例如 富美家的7378G
+3️⃣ 輸入結合品牌與花色：例如 樂維的白色
+4️⃣ 輸入相關要求(如無法顯示則無符合此要求的建材)：例如 給我有耐燃一級的板材 
+"""
+
 instruction_text = """
 🍀瑰貝鈺AI建材小幫手服務指南☘️
 
@@ -196,18 +204,28 @@ def handle_message(event):
 
     if not check_user_permission(user_id):
         reply = "❌ 您沒有查詢權限，請聯絡管理員"
-    elif msg in ["熱門主推", "技術資訊", "瑰貝鈺傳送門"]:
-        if msg == "熱門主推":
-            reply = "📌 熱門建材：https://portaly.cc/Monsurface/pages/hot_catalog"
-        elif msg == "技術資訊":
-            reply = "🔧 技術資訊：https://portaly.cc/Monsurface/pages/technical"
-        else:
-            reply = "🌐 傳送門：https://portaly.cc/Monsurface"
+
+    elif msg in ["建材查詢", "查建材", "查詢建材"]:
+        reply = search_text
+
+    elif msg in ["建材總表"]:
+        reply = "🍀 建材總表：https://reurl.cc/1K2vGY"
+
+    elif msg in ["熱門主推"]:
+        reply = "📌 熱門主推：https://portaly.cc/Monsurface/pages/hot_catalog"
+
+    elif msg in ["技術資訊"]:
+        reply = "🔧 技術資訊：https://portaly.cc/Monsurface/pages/technical"
+
+    elif msg in ["傳送門", "瑰貝鈺傳送門"]:
+        reply = "🌐 傳送門：https://portaly.cc/Monsurface"
+        
     else:
         parsed = extract_intent_and_keywords(msg)
         keywords = parsed.get("關鍵字", [])
         if not keywords:
             reply = instruction_text
+        
         else:
             # fallback 查詢摘要表
             conn = sqlite3.connect(LOCAL_DB_PATH)
