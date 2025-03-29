@@ -106,14 +106,16 @@ def extract_brand_from_keywords(keywords):
             if brand in kw:
                 return brand
     return None
-    
+
+import json  # 建議用 json 取代 eval，更安全
+
 def extract_intent_and_keywords(user_question):
-prompt = f"""
+    prompt = f"""
 你是一位建材助理，請根據使用者的問題，提取以下資訊：
 
 1. 查詢意圖：例如「查型號」、「找品牌系列」、「比較顏色」等。
-2. 關鍵字（可複數）：請盡可能提取所有有助於查詢的關鍵字，例如「我要查富美家的白色」，應提取：富美家、白、白色。
-3. 若使用者的問題屬於預設回覆項目（例如「建材查詢」、「建材總表」、「熱門主推」、「技術資訊」、「傳送門」），則不需處理，主程式將直接回覆。
+2. 關鍵字（可複數）：請盡可能提取所有有助於查詢的關鍵字。例如「我要查富美家的白色」，應提取：富美家、白、白色。
+3. 若使用者的問題屬於預設回覆項目（如「建材查詢」、「建材總表」、「熱門主推」、「技術資訊」、「傳送門」），則不需處理，主程式將直接回覆。
 4. 若問題中出現品牌別名，請自動轉換為以下對應的代表性品牌名稱：
 - 富美家（Formica）：富美加、富美佳
 - 愛卡（AICA）：愛卡、愛克板、AICA、愛克
@@ -127,9 +129,9 @@ prompt = f"""
 - 利明（利明）：礦石軟板、LEE-Ming
 - 華槶（華槶）：華國、Goodware
 
-5. 若提及型號（如：2726NT、D2802SRM），請將其視為完整關鍵字，不可拆解，例如不可拆為「2726」與「NT」。
+5. 若提及型號（如：2726NT、D2802SRM），請將其視為「完整關鍵字」，不可拆解（例如不要拆成 2726 和 NT）。
 
-請僅回傳純 JSON 格式（不要多餘文字），格式如下：
+請僅回傳純 JSON 格式（不要額外說明），如下：
 {{
   "意圖": "...",
   "關鍵字": ["...", "...", "..."]
@@ -148,14 +150,16 @@ prompt = f"""
             ]
         )
         result = res.choices[0].message.content.strip()
-        parsed = eval(result)
+
+        # ✅ 改用 json.loads 取代 eval，更安全
+        parsed = json.loads(result)
         print(f"🔍 使用的關鍵字：{parsed.get('關鍵字', [])}")
         return parsed
+
     except Exception as e:
         print(f"❌ 意圖擷取錯誤: {e}")
         return {"意圖": "未知", "關鍵字": []}
    
-
 def lookup_full_materials(models_and_tables):
     conn = sqlite3.connect(LOCAL_DB_PATH)
     results = []
