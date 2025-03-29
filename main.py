@@ -255,7 +255,7 @@ def handle_message(event):
         
     else:
         parsed = extract_intent_and_keywords(msg)
-        keywords = expand_keywords(parsed.get("關鍵字", []))
+        keywords = parsed.get("關鍵字", [])
         if not keywords:
             reply = instruction_text
         else:
