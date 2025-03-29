@@ -106,7 +106,8 @@ def extract_brand_from_keywords(keywords):
             if brand in kw:
                 return brand
     return None
-
+    
+def extract_intent_and_keywords(user_question):
 prompt = f"""
 你是一位建材助理，請根據使用者的問題，提取以下資訊：
 
