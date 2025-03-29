@@ -133,6 +133,7 @@ def extract_intent_and_keywords(user_question):
     except Exception as e:
         print(f"❌ 意圖擷取錯誤: {e}")
         return {"意圖": "未知", "關鍵字": []}
+        print(f"🔍 使用的關鍵字：{keywords}")
 
 def lookup_full_materials(models_and_tables):
     conn = sqlite3.connect(LOCAL_DB_PATH)
@@ -237,7 +238,7 @@ def handle_message(event):
 
             if not rows:
                 print("⚠️ 查無任何符合條件的型號")
-                reply = instruction_text
+                reply = ⚠️ 查無任何符合條件的型號
             else:
                 full_data = lookup_full_materials(rows)
                 reply = generate_response(msg, full_data)
