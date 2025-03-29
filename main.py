@@ -166,7 +166,7 @@ def generate_response(user_question, matched_materials):
         for row in matched_materials:
             brand = row.get("品牌", "未知品牌")
             model = row.get("型號", "未知型號")
-            color = row.get("花色", "未知花色")
+            color = row.get("花色名稱", "未知花色")
             lines.append(f"- {brand} | {model} | {color}")
         return "\n".join(lines)
 
