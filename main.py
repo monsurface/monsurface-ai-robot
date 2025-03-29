@@ -232,7 +232,7 @@ def handle_message(event):
             conn = sqlite3.connect(LOCAL_DB_PATH)
             cur = conn.cursor()
             conditions = ["摘要 LIKE ? OR 型號 LIKE ? OR 花色 LIKE ?"] * len(keywords)
-            query = f"SELECT 型號, 來源表 FROM materials_summary WHERE {' OR '.join(['(' + c + ')' for c in conditions])} LIMIT 8"
+            query = f"SELECT 型號, 來源表 FROM materials_summary WHERE {' AND '.join(['(' + c + ')' for c in conditions])} LIMIT 8"
             values = []
             for kw in keywords:
                 values.extend([f"%{kw}%"] * 3)
