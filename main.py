@@ -225,7 +225,7 @@ def handle_message(event):
         reply = search_text
 
     elif msg in ["建材總表"]:
-        reply = "🗄️ 建材總表：https://reurl.cc/1K2vGY，需要申請權限"
+        reply = "🗄️ 建材總表（需要申請權限）：https://reurl.cc/1K2vGY"
 
     elif msg in ["熱門主推"]:
         reply = "📌 熱門主推：https://portaly.cc/Monsurface/pages/hot_catalog"
