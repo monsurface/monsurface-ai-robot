@@ -94,23 +94,25 @@ def extract_intent_and_keywords(user_question):
     prompt = f"""
 你是一位建材助理，請從使用者的問題中提取：
 1. 使用者的查詢意圖（例如：查型號、找品牌系列、比較顏色等）
-2. 查詢關鍵字（以關聯性為主，不用過度精簡，例如：「富美家亮白」可以包含「富美家」、「亮白」、「白色」）
+2. 查詢關鍵字（以精簡為主，例如：「富美家亮白」包含「富美家」、「白」）
 3. 如果使用者的問題只對應到預設回覆（如「建材查詢」、「建材總表」、「熱門主推」、「技術資訊」、「傳送門」），則不需要解析，直接交由主程式處理即可。
 請注意：
-- 請將同一句話中具有關聯的詞組一併保留，例如：「富美家白色」、「富美家亮白」、「白色木紋」
-- 如果使用者提到顏色，請保留原詞，也加入可能的組合詞（如：「白色」+「富美家」＝「富美家白色」）
-- 使用者輸入「白色」也請同時提取「白」、「亮白」等可能相似詞
-- 關鍵字可以重疊，例如同時保留「白色」、「亮白」、「富美家白色」等
+- 使用者輸入「白色」，請精簡為最簡易的關鍵字，如「白」
 - 請勿自行推論成資料庫裡存在的名稱，只需提取語意組合
-- 請盡可能萃取多組關鍵字詞組，包括簡稱、部分詞、品牌搭配的完整詞
-- 品牌輸入錯字（如富美加、富美佳）時，也請嘗試保留近似品牌詞
-- 品牌名稱別名
-  富美家 = Formica,
-  愛卡AICA-愛克板 = 愛卡, AICA, 愛克板, 愛克,
-  鉅莊-樂維LAVI = 鉅莊, 樂維, LAVI, 多娜彩, Donacai,
-  松華-松耐特及系列品牌 = 松華, 松耐特, 萊適寶,
-  魔拉頓 Melatone = 魔拉頓, Melatone, Magicor, 魔科板
-
+- 品牌名稱別名，當輸入別名時，傳回代表性名稱
+  品牌輸入錯字（如富美加、富美佳）時，也請嘗試傳回代表性名稱
+  代表性名稱：富美家 = 別名：Formica,
+  代表性名稱：愛卡 = 別名：愛卡, AICA, 愛克板, 愛克,
+  代表性名稱：樂維 = 別名：鉅莊, 樂維, LAVI, 多娜彩, Donacai,
+  代表性名稱：松華 = 別名：松華, 松耐特, 萊適寶,
+  代表性名稱：魔拉頓 = 別名：魔拉頓, Melatone, Magicor, 魔科板
+  代表性名稱：科彰 = 別名：科彰, KOCHANG,
+  代表性名稱：吉祥 = 別名：吉祥,
+  代表性名稱：華旗 = 別名：華旗,
+  代表性名稱：新日綠建材 = 別名：新日綠建材, bulls,
+  代表性名稱：利明 = 別名：礦石軟板, 利明, LEE-Ming,
+  代表性名稱：華槶 = 別名：華國, 華槶,
+  
 請回傳 JSON 格式如下：
 {{
   "意圖": "...",
@@ -229,8 +231,8 @@ def handle_message(event):
             # fallback 查詢摘要表
             conn = sqlite3.connect(LOCAL_DB_PATH)
             cur = conn.cursor()
-            conditions = ["摘要 LIKE ? OR 型號 LIKE ? OR 花色 LIKE ?" for _ in keywords]
-            query = f"SELECT 型號, 來源表 FROM materials_summary WHERE {' AND '.join(['(' + c + ')' for c in conditions])} LIMIT 5"
+            conditions = ["摘要 LIKE ? OR 型號 LIKE ? OR 花色 LIKE ?"] * len(keywords)
+            query = f"SELECT 型號, 來源表 FROM materials_summary WHERE {' OR '.join(['(' + c + ')' for c in conditions])} LIMIT 8"
             values = []
             for kw in keywords:
                 values.extend([f"%{kw}%"] * 3)
