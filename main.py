@@ -129,8 +129,9 @@ def extract_intent_and_keywords(user_question):
             ]
         )
         result = res.choices[0].message.content.strip()
+        parsed = eval(result)
         print(f"🔍 使用的關鍵字：{parsed.get('關鍵字', [])}")
-        return eval(result)
+        return parsed
     except Exception as e:
         print(f"❌ 意圖擷取錯誤: {e}")
         return {"意圖": "未知", "關鍵字": []}
