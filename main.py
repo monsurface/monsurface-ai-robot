@@ -256,16 +256,47 @@ def handle_message(event):
     else:
         parsed = extract_intent_and_keywords(msg)
         keywords = parsed.get("關鍵字", [])
+
         if not keywords:
             reply = instruction_text
         else:
             conn = sqlite3.connect(LOCAL_DB_PATH)
             cur = conn.cursor()
-            conditions = ["摘要 LIKE ? OR 型號 LIKE ? OR 花色 LIKE ?"] * len(keywords)
-            query = f"SELECT 型號, 來源表 FROM materials_summary WHERE {' AND '.join(['(' + c + ')' for c in conditions])} LIMIT 20"
-            values = []
+
+            brand_keywords = []
+            color_keywords = []
+            other_keywords = []
+
             for kw in keywords:
-                values.extend([f"%{kw}%"] * 3)
+                if any(b in kw for b in KNOWN_BRANDS):
+                    brand_keywords.append(kw)
+                elif "白" in kw or "灰" in kw or "黑" in kw:
+                    color_keywords.append(kw)
+                else:
+                    other_keywords.append(kw)
+
+            conditions = []
+            values = []
+
+            if brand_keywords and color_keywords:
+                for b in brand_keywords:
+                    for c in color_keywords:
+                        conditions.append("(來源表 LIKE ? AND 花色 LIKE ?)")
+                        values.extend([f"%{b}%", f"%{c}%"])
+            elif brand_keywords:
+                for b in brand_keywords:
+                    conditions.append("(來源表 LIKE ?)")
+                    values.append(f"%{b}%")
+            elif color_keywords:
+                for c in color_keywords:
+                    conditions.append("(花色 LIKE ?)")
+                    values.append(f"%{c}%")
+            else:
+                for kw in keywords:
+                    conditions.append("(摘要 LIKE ? OR 型號 LIKE ? OR 花色 LIKE ?)")
+                    values.extend([f"%{kw}%"] * 3)
+
+            query = f"SELECT 型號, 來源表 FROM materials_summary WHERE {' OR '.join(conditions)} LIMIT 20"
             cur.execute(query, values)
             rows = cur.fetchall()
             conn.close()
@@ -274,6 +305,7 @@ def handle_message(event):
                 print("⚠️ 查無任何符合條件的型號")
                 reply = "⚠️ 查無任何符合條件的型號"
             else:
+                from your_module import lookup_full_materials, generate_response  # 請根據實際模組位置替換
                 full_data = lookup_full_materials(rows)
                 reply = generate_response(msg, full_data)
 
