@@ -229,7 +229,7 @@ def handle_message(event):
             # fallback 查詢摘要表
             conn = sqlite3.connect(LOCAL_DB_PATH)
             cur = conn.cursor()
-            conditions = ["摘要 LIKE ? OR 型號 LIKE ? OR 花色 LIKE ?" for _ in keywords]
+            conditions = ["摘要 LIKE ? OR 型號 LIKE ? OR 花色名稱 LIKE ?" for _ in keywords]
             query = f"SELECT 型號, 來源表 FROM materials_summary WHERE {' AND '.join(['(' + c + ')' for c in conditions])} LIMIT 5"
             values = []
             for kw in keywords:
