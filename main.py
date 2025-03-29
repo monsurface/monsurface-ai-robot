@@ -22,33 +22,7 @@ search_text = """
 """
 
 instruction_text = """
-🍀瑰貝鈺AI建材小幫手服務指南☘️
-
-1️⃣ 查詢建材資訊：
-可直接輸入部分/完整型號或關鍵字
-
-目前資料庫可查詢品牌：
-Formica富美家、Lavi樂維、
-Donacai多娜彩、萊適寶、松耐特、
-AICA愛卡、Melatone摩拉頓、
-科彰、吉祥、華旗、華槶、
-
-2️⃣ 獲取熱門建材推薦：
-請輸入「熱門主推」
-或利用以下連結
-https://portaly.cc/Monsurface/pages/hot_catalog
-查看主打建材資訊。
-
-3️⃣ 查詢技術資訊：
-請輸入「技術資訊」
-或利用以下連結
-https://portaly.cc/Monsurface/pages/technical
-查看建材品牌的技術資料。
-
-4️⃣ 瑰貝鈺傳送門：
-利用以下連結
-https://portaly.cc/Monsurface
-查看各品牌綜合資訊。
+🍀瑰貝鈺AI建材小幫手，請從下方選單開始您需要的服務☘️
 """
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -115,6 +89,7 @@ def extract_intent_and_keywords(user_question):
 你是一位建材助理，請從使用者的問題中提取：
 1. 查詢意圖（例如：查型號資訊、找品牌系列、比較顏色等）
 2. 相關關鍵字（以字串陣列格式呈現）
+3. 如果使用者的問題只對應到預設回覆（如「建材查詢」、「建材總表」、「熱門主推」、「技術資訊」、「傳送門」），則不需要解析，直接交由主程式處理即可。
 請回傳 JSON 格式如下：
 {{
   "意圖": "...",
