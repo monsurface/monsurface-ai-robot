@@ -305,7 +305,6 @@ def handle_message(event):
                 print("⚠️ 查無任何符合條件的型號")
                 reply = "⚠️ 查無任何符合條件的型號"
             else:
-                from your_module import lookup_full_materials, generate_response  # 請根據實際模組位置替換
                 full_data = lookup_full_materials(rows)
                 reply = generate_response(msg, full_data)
 
