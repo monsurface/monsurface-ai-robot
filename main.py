@@ -114,8 +114,8 @@ def extract_intent_and_keywords(user_question):
 你是一位建材助理，請根據使用者的問題，提取以下資訊：
 
 1. 查詢意圖：例如「查型號」、「找品牌系列」、「比較顏色」等。
-2. 關鍵字（可複數）：請盡可能提取所有有助於查詢的關鍵字。例如「我要查富美家的白色」，應提取：富美家、白、白色。
-3. 只要關鍵字裡包含"色"這個字，請一定移除，譬如提取"黑色"關鍵字，應改為"黑"。
+2. 關鍵字裡包含"色"這個字，請一定移除，譬如提取"黑色"關鍵字，應改為"黑"。
+3. 關鍵字（可複數）：請盡可能提取所有有助於查詢的關鍵字。例如「我要查富美家的亮白色」，應提取：富美家、亮白、白。
 4. 若使用者的問題屬於預設回覆項目（如「建材查詢」、「建材總表」、「熱門主推」、「技術資訊」、「傳送門」），則不需處理，主程式將直接回覆。
 5. 若問題中出現品牌別名，請自動轉換為以下對應的代表性品牌名稱：
 - 富美家（Formica）：富美加、富美佳
@@ -263,47 +263,18 @@ def handle_message(event):
     else:
         parsed = extract_intent_and_keywords(msg)
         keywords = parsed.get("關鍵字", [])
-
         if not keywords:
             reply = instruction_text
+        
         else:
+            # fallback 查詢摘要表
             conn = sqlite3.connect(LOCAL_DB_PATH)
             cur = conn.cursor()
-
-            brand_keywords = []
-            color_keywords = []
-            other_keywords = []
-
-            for kw in keywords:
-                if any(b in kw for b in KNOWN_BRANDS):
-                    brand_keywords.append(kw)
-                elif "白" in kw or "灰" in kw or "黑" in kw:
-                    color_keywords.append(kw)
-                else:
-                    other_keywords.append(kw)
-
-            conditions = []
+            conditions = ["摘要 LIKE ? OR 型號 LIKE ? OR 花色 LIKE ?"] * len(keywords)
+            query = f"SELECT 型號, 來源表 FROM materials_summary WHERE {' AND '.join(['(' + c + ')' for c in conditions])} LIMIT 8"
             values = []
-
-            if brand_keywords and color_keywords:
-                for b in brand_keywords:
-                    for c in color_keywords:
-                        conditions.append("(來源表 LIKE ? AND 花色 LIKE ?)")
-                        values.extend([f"%{b}%", f"%{c}%"])
-            elif brand_keywords:
-                for b in brand_keywords:
-                    conditions.append("(來源表 LIKE ?)")
-                    values.append(f"%{b}%")
-            elif color_keywords:
-                for c in color_keywords:
-                    conditions.append("(花色 LIKE ?)")
-                    values.append(f"%{c}%")
-            else:
-                for kw in keywords:
-                    conditions.append("(摘要 LIKE ? OR 型號 LIKE ? OR 花色 LIKE ?)")
-                    values.extend([f"%{kw}%"] * 3)
-
-            query = f"SELECT 型號, 來源表 FROM materials_summary WHERE {' OR '.join(conditions)} LIMIT 20"
+            for kw in keywords:
+                values.extend([f"%{kw}%"] * 3)
             cur.execute(query, values)
             rows = cur.fetchall()
             conn.close()
