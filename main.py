@@ -13,7 +13,7 @@ from linebot.v3.webhook import WebhookHandler
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
 from linebot.v3.messaging.models import TextMessage
 
-Search_text = """
+search_text = """
 建材查詢方式：
 1️⃣ 輸入型號：例如 8830
 2️⃣ 輸入結合品牌與型號：例如 富美家的7378G
