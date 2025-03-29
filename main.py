@@ -49,6 +49,21 @@ line_bot_api = MessagingApi(api_client)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
 
 KNOWN_BRANDS = ['富美家', 'LAVI', '摩拉頓', '松華', 'AICA', '華旗', '華槶', 'GoodWare', 'KOCHANG']
+COLOR_EXPANSION = {
+    "白": ["白", "白色", "亮白", "珍珠白", "雪白"],
+    "黑": ["黑", "黑色", "霧黑", "亮黑"],
+    "灰": ["灰", "灰色", "深灰", "淺灰", "銀灰"],
+    "木": ["木", "木色", "木紋", "原木", "橡木", "胡桃"],
+}
+
+def expand_keywords(keywords):
+    expanded = []
+    for kw in keywords:
+        if kw in COLOR_EXPANSION:
+            expanded.extend(COLOR_EXPANSION[kw])
+        else:
+            expanded.append(kw)
+    return list(set(expanded))
 
 def download_file(url, path):
     r = requests.get(url)
@@ -238,7 +253,7 @@ def handle_message(event):
         
     else:
         parsed = extract_intent_and_keywords(msg)
-        keywords = parsed.get("關鍵字", [])
+        keywords = expand_keywords(parsed.get("關鍵字", []))
         if not keywords:
             reply = instruction_text
         else:
