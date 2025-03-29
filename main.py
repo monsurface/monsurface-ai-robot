@@ -181,7 +181,7 @@ def handle_message(event):
     if not check_user_permission(user_id):
         reply = "❌ 您沒有查詢權限，請聯絡管理員"
 
-    elif msg in ["建材查詢", "查建材", "查詢建材"]:
+    elif msg in ["AI建材查詢", "查建材", "查詢建材"]:
         reply = search_text
 
     elif msg in ["建材總表"]:
